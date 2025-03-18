@@ -1,0 +1,155 @@
+---
+title: "TP1"
+author: "Grupo 6"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+\
+Universidad Torcuato Di Tella
+
+Licenciatura en Tecnología Digital\
+**Tecnología Digital VI: Inteligencia Artificial**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introducción (1)
+
+CONJUNTO DE DATOS, ORIGEN, VARIABLES PPALES, PROBLEMA A RESOLVER
+
+JUSTIFICACIÓN, CONVERSION DEL PROBLEMA
+
+## Descripción de los datos (2)
+
+SUMMARY, ESTADÍSTICAS (ver practica)
+
+```{r}
+
+datos <- read.csv("Occupancy_Estimation.csv")
+datos$Room_Status <- ifelse(datos$Room_Occupancy_Count > 0, "O", "E")
+summary(datos)
+```
+
+GRAFICO 1 + análisis
+
+GRAFICO 2 + análisis
+
+Mini conclusión?
+
+## Árbol básico (3)
+
+División datos, semilla
+```{r}
+plot(pressure)
+```
+
+Arbol default, valores default
+```{r}
+plot(pressure)
+```
+
+Visualización
+```{r}
+plot(pressure)
+```
+
+Comentario chamuyo final
+
+## Evaluación (4)
+
+Predecir con el modelo un poco
+```{r}
+plot(pressure)
+```
+
+Matriz de confusión
+```{r}
+plot(pressure)
+```
+
+Accuracy
+```{r}
+plot(pressure)
+```
+
+PRecision y recall
+```{r}
+plot(pressure)
+```
+
+F1-score
+```{r}
+plot(pressure)
+```
+
+AUC ROC
+```{r}
+plot(pressure)
+```
+
+Comentario chamuyo final
+
+## Optimización del modelo(5)
+
+maxdepth
+```{r}
+plot(pressure)
+```
+
+minsplit
+```{r}
+plot(pressure)
+```
+
+minbucket
+```{r}
+plot(pressure)
+```
+
+análisis combinado
+```{r}
+plot(pressure)
+```
+
+arbol con mejor performance en test
+```{r}
+plot(pressure)
+```
+
+comparacion con arbol basico y el optimo
+```{r}
+plot(pressure)
+```
+Comentario chamuyo final (y en cada caso, usar MUCHOS gráficos)
+
+## Interpretación (6)
+
+Comentar mejor y más prolijo lo anterior
+
+## Valores faltantes (7)
+generación de datasets nuevos
+```{r}
+plot(pressure)
+```
+
+nuevos arboles de decisiones (ES UNA BANDA OPTIMIZAR CADA UNO)
+```{r}
+plot(pressure)
+```
+
+comparación con punto 5
+```{r}
+plot(pressure)
+```
+
+Chamuyo final
+
+## Conclusión (8)
+
+Resumen de todas las secciones
+Efectividad del arbol
+Direcciones futuras (chamuyo)
