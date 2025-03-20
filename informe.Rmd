@@ -29,9 +29,225 @@ SUMMARY, ESTADÍSTICAS (ver practica)
 
 ```{r}
 
-datos <- read.csv("Occupancy_Estimation.csv")
-datos$Room_Status <- ifelse(datos$Room_Occupancy_Count > 0, "O", "E")
+datos <- read.csv("adult.csv")
 summary(datos)
+
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+
+# Load dataset
+datos <- read.csv("adult.csv")
+
+# Histogram - Age
+ggplot(datos, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Age Distribution", x = "Age", y = "Count")
+
+# Histogram - Education Number
+ggplot(datos, aes(x = education.num)) +
+  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Education Level (Numeric) Distribution", x = "Education Number", y = "Count")
+
+# Histogram - Capital Gain
+ggplot(datos, aes(x = capital.gain)) +
+  geom_histogram(binwidth = 5000, fill = "salmon", color = "black") +
+  theme_minimal() +
+  labs(title = "Capital Gain Distribution", x = "Capital Gain", y = "Count")
+
+# Histogram - Capital Loss
+ggplot(datos, aes(x = capital.loss)) +
+  geom_histogram(binwidth = 500, fill = "purple", color = "black") +
+  theme_minimal() +
+  labs(title = "Capital Loss Distribution", x = "Capital Loss", y = "Count")
+
+# Histogram - Hours per week
+ggplot(datos, aes(x = hours.per.week)) +
+  geom_histogram(binwidth = 5, fill = "orange", color = "black") +
+  theme_minimal() +
+  labs(title = "Hours per Week Distribution", x = "Hours per Week", y = "Count")
+
+# Bar Plot - Workclass
+ggplot(datos, aes(x = workclass)) +
+  geom_bar(fill = "lightblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Workclass Distribution", x = "Workclass", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Bar Plot - Education
+ggplot(datos, aes(x = education)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  theme_minimal() +
+  labs(title = "Education Distribution", x = "Education", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Bar Plot - Marital Status
+ggplot(datos, aes(x = marital.status)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Marital Status Distribution", x = "Marital Status", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Bar Plot - Occupation
+ggplot(datos, aes(x = occupation)) +
+  geom_bar(fill = "purple", color = "black") +
+  theme_minimal() +
+  labs(title = "Occupation Distribution", x = "Occupation", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Bar Plot - Race
+ggplot(datos, aes(x = race)) +
+  geom_bar(fill = "coral", color = "black") +
+  theme_minimal() +
+  labs(title = "Race Distribution", x = "Race", y = "Count")
+
+# Bar Plot - Sex
+ggplot(datos, aes(x = sex)) +
+  geom_bar(fill = "pink", color = "black") +
+  theme_minimal() +
+  labs(title = "Sex Distribution", x = "Sex", y = "Count")
+
+# Bar Plot - Native Country
+ggplot(datos, aes(x = native.country)) +
+  geom_bar(fill = "gold", color = "black") +
+  theme_minimal() +
+  labs(title = "Native Country Distribution", x = "Country", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Bar Plot - Income
+ggplot(datos, aes(x = income)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Income Distribution", x = "Income", y = "Count")
+
+
+cor_matrix <- cor(datos[sapply(datos, is.numeric)], use = "complete.obs")
+corrplot(cor_matrix, method = "circle")
+
+library(ggplot2)
+
+ggplot(datos, aes(x = workclass, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(datos, aes(x = education, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(datos, aes(x = occupation, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(datos, aes(x = relationship, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(datos, aes(x = race, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(datos, aes(x = sex, fill = income)) +
+  geom_bar(position = "fill") +
+  labs(title = "Income Proportion by Workclass", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+library(rpart)
+library(rpart.plot)
+
+# Build the decision tree model
+tree_model <- rpart(income ~ ., data = datos, method = "class", cp = 0.01)
+
+# Plot the tree
+rpart.plot(tree_model, type = 2, extra = 104, fallen.leaves = TRUE, 
+           main = "Decision Tree for Income")
+
+
+set.seed(24061987)
+library(caret)
+
+# Obtenemos el total de filas que tiene nuestro dataset (50000)
+n = nrow(datos)
+
+# Elegimos de manera aleatoria los indices de la datos, asignando el 70% de los indices a los datos de entrenamiento, el 15% a datos de validación y 15% a datos de testeo
+
+train_indices = sample(1:n, size = 0.7 * n)
+remaining_indices = setdiff(1:n, train_indices)
+val_indices = sample(remaining_indices, size = 0.15 * n)
+test_indices = setdiff(remaining_indices, val_indices)
+
+# Ahora creamos los datasets de train, validation y test, aleatorios, basados en los indices creados
+
+train_set = datos[train_indices, ]
+val_set = datos[val_indices, ]
+test_set = datos[test_indices, ]
+test_set_arbol = datos[test_indices, ]
+
+
+arbol = rpart(formula = income ~ ., data = train_set, method = "class")
+
+# Calculamos la media del set de entrenamiento
+mean_income_train_set = mean(train_set$income, na.rm = TRUE)
+print(mean_income_train_set)
+
+rpart.plot(arbol, box.palette = "orange")
+
+print(rpart.control())
+
+# Predicciones de clase
+predictions_class = predict(arbol, newdata = test_set, type = "class")
+
+# Agregar las predicciones de clase al conjunto de datos
+test_set$predicted_class_income = predictions_class
+
+# Predicciones de probabilidades
+predictions_prob = predict(arbol, newdata = test_set, type = "prob")
+
+# Agregar las predicciones de probabilidades al conjunto de datos
+test_set$predicted_prob_income = predictions_prob
+
+message("Columnas 'predicted_class_income' y 'predicted_prob_income' agregadas exitosamente al dataset.")
+
+generar_matriz_confusion = function(clase_real, clase_predicha){
+# Convert to factors with the correct levels
+  niveles = unique(clase_real)  # Extract unique levels from the real class
+  clase_real_factor = factor(clase_real, levels = niveles)
+  clase_predicha_factor = factor(clase_predicha, levels = niveles)
+  
+  # Calcular la matriz de confusión
+  matriz_confusion = confusionMatrix(clase_predicha_factor, clase_real_factor)
+  
+  # Extraer la tabla de la matriz de confusión
+  cm = matriz_confusion$table
+  
+  # Calcular las longitudes positivas y negativas
+  positive_len = sum(clase_real == 1)
+  negative_len = sum(clase_real == 0)
+  
+  # Normalizar la matriz de confusión
+  cm[1, 1] = cm[1, 1] / negative_len
+  cm[1, 2] = cm[1, 2] / positive_len
+  cm[2, 1] = cm[2, 1] / negative_len
+  cm[2, 2] = cm[2, 2] / positive_len
+  
+  pheatmap(cm,
+           display_numbers = TRUE,
+           color = colorRampPalette(c("coral", "orange"))(50),
+           main = "Confusion Matrix",
+           number_format = "%.2f",
+           cluster_rows = FALSE,
+           cluster_cols = FALSE,
+           legend = TRUE,
+           fontsize_number = 15)
+  
+  return(matriz_confusion)
+}
+
+# Llamar a la función con las columnas del dataset
+matriz_de_confusion = generar_matriz_confusion(test_set$income, test_set$predicted_class_income)
+
 ```
 
 GRAFICO 1 + análisis
