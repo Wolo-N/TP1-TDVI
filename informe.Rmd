@@ -363,18 +363,14 @@ F1_Score(test_set$predicted_class_sex, y_true = test_set$sex, positive = "Male")
 AUC ROC
 
 ```{r}
-library(pROC)
-# Install and load pROC package if not installed
 library(MLmetrics)
 vector_sex <- ifelse(test_set$sex == "Male", 0, 1)
-AUC(y_pred = as.numeric(test_set$predicted_class_sex), y_true = vector_sex)
+AUC(y_pred = test_set$predicted_prob_sex[,"Female"], y_true = vector_sex)
 
 library(pROC)
 
 # Plot ROC curve
 roc_curve <- roc(vector_sex, test_set$predicted_prob_sex[, "Female"])
-auc_value = auc(roc_curve)
-print(auc_value)
 
 # Plot ROC curve
 plot(roc_curve, main = "ROC Curve for Sex Prediction", col = "blue", lwd = 2)
@@ -456,9 +452,69 @@ graficar_performance(result_data)
 minbucket
 
 ```{r}
+# Función para evaluar el rendimiento del árbol, con dataset como parámetro
+evaluar_arbol = function(maxdepth, minsplit, minbucket, training, validation) {
+  modelo = rpart(
+    formula = sex ~ ., 
+    data = training, 
+    method = "class", 
+    control = rpart.control(
+      maxdepth = as.integer(maxdepth), 
+      minsplit = as.integer(minsplit), 
+      minbucket = as.integer(minbucket),
+      cp = 0,
+      xval = 0
+    )
+  )
+  predicciones = predict(modelo, validation, type = "prob")
+  vector_sex_val <- ifelse(val_set$sex == "Male", 0, 1)
+  auc_score = AUC(y_pred = predicciones[,"Female"], y_true = vector_sex_val)
+
+  # Devolver una lista con el campo Score
+  return(list(Score = auc_score))
+}
+
 
 ```
 
+```{r}
+resultados_auc <- data.frame(MaxDepth = integer(), 
+                             MinBucket = integer(), 
+                             MinSplit = integer(),
+                             AUC = numeric())
+
+for (maxdepth in seq(1, 30, length.out = 10) |> round()) {
+  for (minbucket in seq(1, 10, length.out = 5) |> round()) {
+    for (minsplit in seq(0, 100, length.out = 10) |> round()){
+      resultado <- evaluar_arbol(maxdepth = maxdepth, 
+                                     minsplit = 20, 
+                                     minbucket = minbucket, 
+                                     training = train_set, 
+                                     validation = val_set)
+          
+      resultados_auc <- rbind(resultados_auc, 
+                              data.frame(MaxDepth = maxdepth, 
+                                         MinBucket = minbucket, 
+                                         MinSplit = minsplit,
+                                         AUC = resultado$Score))
+    }
+  }
+}
+```
+
+```{r}
+library(plotly)
+
+plot_ly(resultados_auc, 
+        x = ~MaxDepth, 
+        y = ~MinSplit, 
+        z = ~MinBucket, 
+        color = ~AUC, 
+        type = "scatter3d", 
+        mode = "markers", 
+        text = ~paste("AUC: ", AUC)) %>%
+  layout(title = "AUC vs Max Depth, Min Split y Min Bucket")
+```
 arbol con mejor performance en test
 análisis combinado
 
