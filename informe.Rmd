@@ -13,24 +13,391 @@ Universidad Torcuato Di Tella
 Licenciatura en Tecnología Digital\
 **Tecnología Digital VI: Inteligencia Artificial**
 
+# Trabajo Práctico 1
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Introducción (1)
+## Introducción al Problema (1)
 
-CONJUNTO DE DATOS, ORIGEN, VARIABLES PPALES, PROBLEMA A RESOLVER
+Para este trabajo práctico decidimos utilizar una base de datos compuesta por 32560 entradas de un censo realizado en Estados Unidos en el año 1994. En esta, se busca relacionar varios datos sobre cada individuo, como edad, sexo, nivel de educacion, etc. con el ingreso anual de estos mismos, midiendo si se encuentra por debajo o por arriba de USD \$50,000 dólares.
 
-JUSTIFICACIÓN, CONVERSION DEL PROBLEMA
+Esta misma base de datos se puede encontrar en: <https://archive.ics.uci.edu/dataset/2/adult>.
 
-## Descripción de los datos (2)
+Para entender mejor esta base de datos, veamos las variables principales que la componen:\
+
+### Variables Predictoras
+
+***age***: la edad del individuo
+
+-   Entero mayor a 0.
+
+***workclass***: representa el estado laboral general del individuo
+
+-   Private, Self-emp-not-inc, Self-emp-inc, Federal-gov, Local-gov, State-gov, Without-pay, Never-worked.
+
+***fnlwgt***: cantidad de personas que el censo cree que representa ese registro
+
+-   Entero mayor a 0.
+
+***education***: el nivel educativo más alto alcanzado por el individuo
+
+-   Bachelors, Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th, 7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool.
+
+***education-num*****:** el nivel educativo en formato numérico
+
+-   Entero mayor a 0.
+
+***marital-status***: el estado civil del individuo. Married-civ-spouse se refiere a cónyuge civil y Married-AF-spouse a cónyuge de las Fuerzas Armadas.
+
+-   Married-civ-spouse, Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse.
+
+***occupation*****:** tipo general de ocupación del individuo.
+
+-   Tech-support, Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty, Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing, Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces.
+
+***relationship***: describe la relación de este individuo con otros en su hogar. Por ejemplo, puede ser esposo. Esta variable es algo redundante con el estado civil y tal vez no se use.
+
+-   Wife, Own-child, Husband, Not-in-family, Other-relative, Unmarried.
+
+***race***: descripción de la raza del individuo.
+
+-   White, Asian-Pac-Islander, Amer-Indian-Eskimo, Other, Black.
+
+***capital-gain***: ganancias de capital del individuo.
+
+-   Entero mayor o igual a 0
+
+***capital-loss***: pérdidas de capital del individuo.
+
+-   Entero mayor o igual a 0.
+
+***hours-per-week***: cantidad de horas trabajadas por semana según el individuo.
+
+-   Continuo.
+
+***native-country***: país de nacimiento del individuo.
+
+-   United-States, Cambodia, England, Puerto-Rico, Canada, Germany, Outlying-US(Guam-USVI-etc), India, Japan, Greece, South, China, Cuba, Iran, Honduras, Philippines, Italy, Poland, Jamaica, Vietnam, Mexico, Portugal, Ireland, France, Dominican-Republic, Laos, Ecuador, Taiwan, Haiti, Columbia, Hungary, Guatemala, Nicaragua, Scotland, Thailand, Yugoslavia, El-Salvador, Trinidad&Tobago, Peru, Hong, Holand-Netherlands.
+
+***income***: indica si el individuo gana más o menos de \$50,000 dólares anuales
+
+-   \<=50K, \>50K.
+
+### Variable a Predecir:
+
+***sex***: sexo biológico del individuo.
+
+-   Male, Female.
+
+
+
+En este trabajo práctico buscaremos predecir la variable *sex* utilizando como contexto las otras variables. Esto no fue así desde el comienzo, sino que comenzamos queriendo predecir el ingreso(\<=50K o \>50K), pero al familiarizarnos con la base de datos, decidimos que seria mas interesante predecir el sexo de la persona, dadas todas las condiciones. Esto nos va a dar una mirada única y mas profunda sobre las diferencias entre el hombre y la mujer en los años noventa, en Estados Unidos dados los datos mencionados.
+
+Con esta base de datos, los árboles de decisión seran relativamente fáciles de interpretar y visualizar, lo que permite entender cómo las diferentes variables predictoras influyen en la predicción de si una persona ganaría mas de USD \$50,000 o no.
+
+Las características intrínsecas de nuestro conjunto de datos, como la combinación de variables categóricas y numéricas, la posible presencia de relaciones no lineales, y la necesidad de interpretabilidad hacen que el uso de árboles de decisión sea una elección justificada y adecuada para nuestro análisis de predicción de salarios.
+
+## Observación de los Datos (2)
 
 SUMMARY, ESTADÍSTICAS (ver practica)
 
 ```{r}
-
 datos <- read.csv("adult.csv")
 summary(datos)
+
+```
+
+A partir del summary podemos empezar a comprender la distribucion de los datos, podemos ver como los encuestados tienen edades entre los 17 y 90 años, con una edad promedio de 37. Pero con este simple analisis no podemos ver informacion compleja de nuestras variables, como por ejemplo la relacion que tiene la edad de una persona con su salario. Para esto, a continuación vamos a graficar estas relaciones con el fin de entender con mayor profundidad la incidencia que tienen las variables predictoras sobre nuestra variable a predecir.
+
+```{r}
+library(ggplot2)
+
+ggplot(datos, aes(x = sex, y = age, fill = sex)) +
+  geom_boxplot(alpha = 0.6) +
+  labs(title = "Boxplot de Edad por Sexo",
+       x = "Sexo",
+       y = "Edad") +
+  scale_y_continuous(breaks = seq(0, 100, 10)) +
+  theme_minimal()
+```
+A simple vista podemos ver la distribucion etaria para ambos sexos, con la edad promedio de los hombres apenas mayor que la de las mujeres.  
+
+
+```{r}
+ggplot(datos, aes(x = education, fill = sex)) +
+  geom_bar(alpha = 0.8, position = "fill") +
+  labs(title = "Proporción de Nivel Educativo por Sexo",
+       x = "Nivel Educativo", y = "Proporción") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+En este gráfico podemos ver una clara diferencia entre la cantidad de mujeres y varones en todos los niveles de educación. En muchos, la cantidad de mujeres osila cerca de un cuarto en relacion a la cantidad de hombres que cumplieron ese nivel educativo. 
+
+
+```{r}
+ggplot(datos, aes(x = sex, fill = income)) +
+  geom_bar(alpha = 0.8, position = "fill") +
+  labs(title = "Distribución de Ingreso por Sexo",
+       x = "Sexo", y = "Proporción") +
+  theme_minimal()
+```
+Al analizar el salario vemos como se sigue ampliando la brecha. En promedio, 1 de cada 3 hombres ganan mas de 50k al año, mientras que ese numero para las mujeres se acerca a 1 de cada 8.
+
+
+```{r}
+library(ggplot2)
+library(scales)  # Para mostrar en %
+
+ggplot(datos, aes(x = hours.per.week, fill = sex)) +
+  geom_histogram(aes(y = after_stat(count / sum(count))),
+                 position = "dodge", alpha = 0.6, bins = 20) +
+  labs(title = "Horas Trabajadas por Semana según Sexo (Proporción)",
+       x = "Horas por Semana", y = "Porcentaje") +
+  scale_y_continuous(labels = percent) +
+  scale_x_continuous(breaks = seq(0, 100, 10))
+  theme_minimal()
+```
+Aquí tambien vemos una discrepancia, mientras que las mujeres dominan el mercado laboral en roles de menos de 40 horas semanales, a partir de ese numero, los hombres se llevan la delantera con margenes gigantescos. 
+
+## Árbol básico (3)
+
+División datos, semilla
+
+```{r}
+set.seed(24061987)
+
+# Obtenemos el total de filas que tiene nuestro dataset (32561)
+n = nrow(datos)
+
+# Elegimos de manera aleatoria los indices de la datos, asignando el 70% de los indices a los datos de entrenamiento, el 15% a datos de validación y 15% a datos de testeo
+
+train_indices = sample(1:n, size = 0.7 * n)
+remaining_indices = setdiff(1:n, train_indices)
+val_indices = sample(remaining_indices, size = 0.15 * n)
+test_indices = setdiff(remaining_indices, val_indices)
+
+# Ahora creamos los datasets de train, validation y test, aleatorios, basados en los indices creados
+
+train_set = datos[train_indices, ]
+val_set = datos[val_indices, ]
+test_set = datos[test_indices, ]
+test_set_arbol = datos[test_indices, ]
+```
+
+Arbol default, valores default
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+arbol = rpart(formula = sex ~ ., data = train_set, method = "class")
+
+# Calculamos la media del set de entrenamiento
+mean_popularity_train_set = mean(train_set$sex, na.rm = TRUE)
+print(mean_popularity_train_set)
+
+rpart.plot(arbol, box.palette = "orange")
+
+print(rpart.control())
+```
+
+\###*Análisis de los hiperparámetros*
+
+Los hiperparámetros más relevantes y su valor por defecto en rpart son:
+
+-   *minsplit* = 20 --\> Un nodo debe tener al menos 20 observaciones para ser considerado para una división, puede suceder como no.
+
+-   *minbucket* = round(minsplit / 3) =\> 20/3 = 6.66 ≈ 7 --\> Por defecto, es aproximadamente un tercio de minsplit y limita el número mínimo de observaciones que debe tener un nodo terminal.
+
+-   (complexity parameter) *cp* = 0.01--\> Controla la poda del árbol, en donde un valor de 0.01 significa que una división debe disminuir el error relativo en al menos un 1% para ser considerada.
+    Un valor de 1 se corresponde con un árbol sin divisiones, mientras que un valor de 0, con un árbol de profundidad máxima.
+    Sólo se agregan divisiones cuando el costo de agregarlas es menor al valor de *cp*.
+
+-   *maxdepth* = 30 --\> un valor de 30 permite que el árbol tenga hasta 30 niveles de profundidad, este hiperparámetro controla la profundiad del mismo.
+
+-   *xval* = 10 --\> una significación de 10 implica que se realizarán 10 validaciones cruzadas.
+
+-   *maxcompete* = 4 --\> una estimación de 4 implica que retendrán las 4 mejores divisiones alternativas en cada nodo.
+
+-   *maxsurrogate* = 5 --\> define el número máximo de variables sustitutas a retener en cada nodo.
+    Las variables sustitutas se utilizan para manejar datos faltantes.
+    Un valor de 5 significa que el algoritmo retendrá hasta 5 variables sustitutas por nodo.
+
+-   *usesurrogate* = 2 --\> controla cómo se utilizan las variables sustitutas para manejar datos faltantes.
+    Los valores posibles son:
+
+    0 = No se utilizan variables sustitutas.
+    1 = Se utilizan variables sustitutas solo para dividir los datos.
+    2 = Se utilizan variables sustitutas tanto para dividir los datos como para asignar observaciones a nodos terminales.
+
+-   *surrogatestyle* = 0 --\> define el estilo de selección de variables sustitutas.
+    Los valores posibles son:
+
+    0 = Se seleccionan las variables sustitutas basándose en la reducción del error.
+    1 = Se seleccionan las variables sustitutas basándose en la similitud con la variable principal.
+
+```{r}
+nrow(datos)
+```
+
+Comentario chamuyo final
+
+## Evaluación (4)
+
+Predecir con el modelo un poco
+
+```{r}
+# Predicciones de clase
+predictions_class = predict(arbol, newdata = test_set, type = "class")
+
+# Agregar las predicciones de clase al conjunto de datos
+test_set$predicted_class_sex = predictions_class
+
+# Predicciones de probabilidades
+predictions_prob = predict(arbol, newdata = test_set, type = "prob")
+
+# Agregar las predicciones de probabilidades al conjunto de datos
+test_set$predicted_prob_sex = predictions_prob
+
+message("Columnas 'predicted_class_sex' y 'predicted_prob_sex' agregadas exitosamente al dataset.")
+```
+
+Matriz de confusión
+
+```{r}
+library(caret)
+library(recipes)
+library(pheatmap)
+
+generar_matriz_confusion = function(clase_real, clase_predicha){
+  # Convertir las columnas a factores con los mismos niveles
+  clase_real_factor = factor(clase_real, levels = c(0, 1))
+  clase_predicha_factor = factor(clase_predicha, levels = c(0, 1))
+  
+  # Calcular la matriz de confusión
+  matriz_confusion = confusionMatrix(clase_predicha_factor, clase_real_factor)
+  
+  # Extraer la tabla de la matriz de confusión
+  cm = matriz_confusion$table
+  
+  # Calcular las longitudes positivas y negativas
+  positive_len = sum(clase_real == 1)
+  negative_len = sum(clase_real == 0)
+  
+  # Normalizar la matriz de confusión
+  cm[1, 1] = cm[1, 1] / negative_len
+  cm[1, 2] = cm[1, 2] / positive_len
+  cm[2, 1] = cm[2, 1] / negative_len
+  cm[2, 2] = cm[2, 2] / positive_len
+  
+  pheatmap(cm,
+           display_numbers = TRUE,
+           color = colorRampPalette(c("coral", "orange"))(50),
+           main = "Confusion Matrix",
+           number_format = "%.2f",
+           cluster_rows = FALSE,
+           cluster_cols = FALSE,
+           legend = TRUE,
+           fontsize_number = 15)
+  
+  return(matriz_confusion)
+}
+
+# Llamar a la función con las columnas del dataset
+matriz_de_confusion = generar_matriz_confusion(test_set$sex, test_set$predicted_class_sex)
+```
+
+Accuracy
+
+```{r}
+plot(pressure)
+```
+
+PRecision y recall
+
+```{r}
+plot(pressure)
+```
+
+F1-score
+
+```{r}
+plot(pressure)
+```
+
+AUC ROC
+
+```{r}
+plot(pressure)
+```
+
+Comentario chamuyo final
+
+## Optimización del modelo(5)
+
+maxdepth
+
+```{r}
+plot(pressure)
+```
+
+minsplit
+
+```{r}
+plot(pressure)
+```
+
+minbucket
+
+```{r}
+plot(pressure)
+```
+
+análisis combinado
+
+```{r}
+plot(pressure)
+```
+
+arbol con mejor performance en test
+
+```{r}
+plot(pressure)
+```
+
+comparacion con arbol basico y el optimo
+
+```{r}
+plot(pressure)
+```
+
+Comentario chamuyo final (y en cada caso, usar MUCHOS gráficos)
+
+## Interpretación (6)
+
+Comentar mejor y más prolijo lo anterior
+
+## Valores faltantes (7)
+
+generación de datasets nuevos
+
+```{r}
+plot(pressure)
+```
+
+nuevos arboles de decisiones (ES UNA BANDA OPTIMIZAR CADA UNO)
+
+```{r}
+plot(pressure)
+```
+
+comparación con punto 5
+
+```{r}
+plot(pressure)
 
 # Load libraries
 library(ggplot2)
@@ -250,122 +617,8 @@ matriz_de_confusion = generar_matriz_confusion(test_set$income, test_set$predict
 
 ```
 
-GRAFICO 1 + análisis
-
-GRAFICO 2 + análisis
-
-Mini conclusión?
-
-## Árbol básico (3)
-
-División datos, semilla
-```{r}
-plot(pressure)
-```
-
-Arbol default, valores default
-```{r}
-plot(pressure)
-```
-
-Visualización
-```{r}
-plot(pressure)
-```
-
-Comentario chamuyo final
-
-## Evaluación (4)
-
-Predecir con el modelo un poco
-```{r}
-plot(pressure)
-```
-
-Matriz de confusión
-```{r}
-plot(pressure)
-```
-
-Accuracy
-```{r}
-plot(pressure)
-```
-
-PRecision y recall
-```{r}
-plot(pressure)
-```
-
-F1-score
-```{r}
-plot(pressure)
-```
-
-AUC ROC
-```{r}
-plot(pressure)
-```
-
-Comentario chamuyo final
-
-## Optimización del modelo(5)
-
-maxdepth
-```{r}
-plot(pressure)
-```
-
-minsplit
-```{r}
-plot(pressure)
-```
-
-minbucket
-```{r}
-plot(pressure)
-```
-
-análisis combinado
-```{r}
-plot(pressure)
-```
-
-arbol con mejor performance en test
-```{r}
-plot(pressure)
-```
-
-comparacion con arbol basico y el optimo
-```{r}
-plot(pressure)
-```
-Comentario chamuyo final (y en cada caso, usar MUCHOS gráficos)
-
-## Interpretación (6)
-
-Comentar mejor y más prolijo lo anterior
-
-## Valores faltantes (7)
-generación de datasets nuevos
-```{r}
-plot(pressure)
-```
-
-nuevos arboles de decisiones (ES UNA BANDA OPTIMIZAR CADA UNO)
-```{r}
-plot(pressure)
-```
-
-comparación con punto 5
-```{r}
-plot(pressure)
-```
-
 Chamuyo final
 
 ## Conclusión (8)
 
-Resumen de todas las secciones
-Efectividad del arbol
-Direcciones futuras (chamuyo)
+Resumen de todas las secciones Efectividad del arbol Direcciones futuras (chamuyo)
