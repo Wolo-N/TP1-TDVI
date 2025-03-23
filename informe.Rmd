@@ -104,9 +104,13 @@ Las características intrínsecas de nuestro conjunto de datos, como la combinac
 SUMMARY, ESTADÍSTICAS (ver practica)
 
 ```{r}
-datos <- read.csv("adult.csv")
+library(readr)
+# Cargamos el conjunto de datos original, 
+# aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
+datos = read_csv("adult.csv", na = "?", show_col_types = FALSE)
+# Eliminamos las columnas que no utilizaremos.
+datos <- subset(datos, select = -c(education, relationship))
 summary(datos)
-
 ```
 
 A partir del summary podemos empezar a comprender la distribucion de los datos, podemos ver como los encuestados tienen edades entre los 17 y 90 años, con una edad promedio de 37. Pero con este simple analisis no podemos ver informacion compleja de nuestras variables, como por ejemplo la relacion que tiene la edad de una persona con su salario. Para esto, a continuación vamos a graficar estas relaciones con el fin de entender con mayor profundidad la incidencia que tienen las variables predictoras sobre nuestra variable a predecir.
@@ -274,8 +278,8 @@ library(pheatmap)
 
 generar_matriz_confusion = function(clase_real, clase_predicha){
   # Convertir las columnas a factores con los mismos niveles
-  clase_real_factor = factor(clase_real, levels = c(0, 1))
-  clase_predicha_factor = factor(clase_predicha, levels = c(0, 1))
+  clase_real_factor = factor(clase_real, levels = c("Male","Female" ))
+  clase_predicha_factor = factor(clase_predicha, levels = c("Male", "Female"))
   
   # Calcular la matriz de confusión
   matriz_confusion = confusionMatrix(clase_predicha_factor, clase_real_factor)
@@ -284,9 +288,14 @@ generar_matriz_confusion = function(clase_real, clase_predicha){
   cm = matriz_confusion$table
   
   # Calcular las longitudes positivas y negativas
-  positive_len = sum(clase_real == 1)
-  negative_len = sum(clase_real == 0)
+  positive_len = sum(clase_real == "Female")
+  negative_len = sum(clase_real == "Male")
   
+  
+  if (positive_len == 0 | negative_len == 0) {
+  stop("No hay suficientes muestras de uno de los grupos para normalizar")
+}
+
   # Normalizar la matriz de confusión
   cm[1, 1] = cm[1, 1] / negative_len
   cm[1, 2] = cm[1, 2] / positive_len
@@ -313,25 +322,62 @@ matriz_de_confusion = generar_matriz_confusion(test_set$sex, test_set$predicted_
 Accuracy
 
 ```{r}
-plot(pressure)
+library(MLmetrics)
+
+# Accuracy
+accuracy = Accuracy(y_pred = test_set$predicted_class_sex, y_true = test_set$sex)
+print(paste("Accuracy:", round(accuracy, 4)))
+
+accuracy = matriz_de_confusion$overall['Accuracy']
+print(accuracy)
 ```
 
 PRecision y recall
 
 ```{r}
-plot(pressure)
+# Precision (Female como clase positiva)
+precision = Precision(y_pred = test_set$predicted_class_sex, y_true = test_set$sex, positive = "Female")
+print(precision)
+
+# Recall (Female como clase positiva)
+recall = Recall(y_pred = test_set$predicted_class_sex, y_true = test_set$sex, positive = "Female")
+print(recall)
+
+# Precision (Male como clase positiva)
+precision = Precision(y_pred = test_set$predicted_class_sex, y_true = test_set$sex, positive = "Male")
+print(precision)
+
+# Recall (Male como clase positiva)
+recall = Recall(y_pred = test_set$predicted_class_sex, y_true = test_set$sex, positive = "Male")
+print(recall)
+
 ```
 
 F1-score
 
 ```{r}
-plot(pressure)
+F1_Score(test_set$predicted_class_sex, y_true = test_set$sex, positive = "Female")
+F1_Score(test_set$predicted_class_sex, y_true = test_set$sex, positive = "Male")
 ```
 
 AUC ROC
 
 ```{r}
-plot(pressure)
+library(pROC)
+# Install and load pROC package if not installed
+library(MLmetrics)
+vector_sex <- ifelse(test_set$sex == "Male", 0, 1)
+AUC(y_pred = as.numeric(test_set$predicted_class_sex), y_true = vector_sex)
+
+library(pROC)
+
+# Plot ROC curve
+roc_curve <- roc(vector_sex, test_set$predicted_prob_sex[, "Female"])
+auc_value = auc(roc_curve)
+print(auc_value)
+
+# Plot ROC curve
+plot(roc_curve, main = "ROC Curve for Sex Prediction", col = "blue", lwd = 2)
 ```
 
 Comentario chamuyo final
@@ -341,28 +387,80 @@ Comentario chamuyo final
 maxdepth
 
 ```{r}
-plot(pressure)
+library(rBayesianOptimization)
+library(rpart)
+library(pROC)
+library(ggplot2)
+
+# Función para evaluar el rendimiento del árbol, con dataset como parámetro
+evaluar_arbol = function(maxdepth, minsplit, minbucket, training, validation) {
+  modelo = rpart(
+    formula = sex ~ ., 
+    data = training, 
+    method = "class", 
+    control = rpart.control(
+      maxdepth = as.integer(maxdepth), 
+      minsplit = as.integer(minsplit), 
+      minbucket = as.integer(minbucket),
+      cp = 0,
+      xval = 0
+    )
+  )
+  predicciones = predict(modelo, validation, type = "prob")[,2]
+  roc_curve = roc(response = ifelse(validation$sex == "Female", 1, 0), predictor = predicciones)
+  auc_score = auc(roc_curve)
+  
+  # Devolver una lista con el campo Score
+  return(list(Score = auc_score))
+}
+
+# Definir los límites de los hiperparámetros
+limites = list(
+  maxdepth = c(1L, 30L), 
+  minsplit = c(2L, 100L), 
+  minbucket = c(1L, 10L)
+)
+
+# Ejecutar la optimización bayesiana
+result = BayesianOptimization(
+  FUN = function(maxdepth, minsplit, minbucket) {
+    evaluar_arbol(maxdepth, minsplit, minbucket, train_set, val_set)
+  },
+  bounds = limites,
+  init_points = 30,
+  n_iter = 20,
+)
+
+graficar_performance = function(resultado){
+  ggplot(resultado, aes(x = Round, y = Value)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Progreso del valor del area bajo la curva de AUC-ROC con OB",
+       x = "Iteración",
+       y = "Área Bajo la Curva de AUC-ROC") +
+  theme_minimal()
+}
+
+# Extraer el historial de resultados
+result_data = result$History
+
+mejores_hiperparametros = result$Best_Par
 ```
 
 minsplit
 
 ```{r}
-plot(pressure)
+graficar_performance(result_data)
 ```
 
 minbucket
 
 ```{r}
-plot(pressure)
-```
 
-análisis combinado
-
-```{r}
-plot(pressure)
 ```
 
 arbol con mejor performance en test
+análisis combinado
 
 ```{r}
 plot(pressure)
@@ -397,223 +495,6 @@ plot(pressure)
 comparación con punto 5
 
 ```{r}
-plot(pressure)
-
-# Load libraries
-library(ggplot2)
-library(dplyr)
-library(corrplot)
-
-# Load dataset
-datos <- read.csv("adult.csv")
-
-# Histogram - Age
-ggplot(datos, aes(x = age)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black") +
-  theme_minimal() +
-  labs(title = "Age Distribution", x = "Age", y = "Count")
-
-# Histogram - Education Number
-ggplot(datos, aes(x = education.num)) +
-  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black") +
-  theme_minimal() +
-  labs(title = "Education Level (Numeric) Distribution", x = "Education Number", y = "Count")
-
-# Histogram - Capital Gain
-ggplot(datos, aes(x = capital.gain)) +
-  geom_histogram(binwidth = 5000, fill = "salmon", color = "black") +
-  theme_minimal() +
-  labs(title = "Capital Gain Distribution", x = "Capital Gain", y = "Count")
-
-# Histogram - Capital Loss
-ggplot(datos, aes(x = capital.loss)) +
-  geom_histogram(binwidth = 500, fill = "purple", color = "black") +
-  theme_minimal() +
-  labs(title = "Capital Loss Distribution", x = "Capital Loss", y = "Count")
-
-# Histogram - Hours per week
-ggplot(datos, aes(x = hours.per.week)) +
-  geom_histogram(binwidth = 5, fill = "orange", color = "black") +
-  theme_minimal() +
-  labs(title = "Hours per Week Distribution", x = "Hours per Week", y = "Count")
-
-# Bar Plot - Workclass
-ggplot(datos, aes(x = workclass)) +
-  geom_bar(fill = "lightblue", color = "black") +
-  theme_minimal() +
-  labs(title = "Workclass Distribution", x = "Workclass", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Bar Plot - Education
-ggplot(datos, aes(x = education)) +
-  geom_bar(fill = "lightgreen", color = "black") +
-  theme_minimal() +
-  labs(title = "Education Distribution", x = "Education", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Bar Plot - Marital Status
-ggplot(datos, aes(x = marital.status)) +
-  geom_bar(fill = "skyblue", color = "black") +
-  theme_minimal() +
-  labs(title = "Marital Status Distribution", x = "Marital Status", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Bar Plot - Occupation
-ggplot(datos, aes(x = occupation)) +
-  geom_bar(fill = "purple", color = "black") +
-  theme_minimal() +
-  labs(title = "Occupation Distribution", x = "Occupation", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Bar Plot - Race
-ggplot(datos, aes(x = race)) +
-  geom_bar(fill = "coral", color = "black") +
-  theme_minimal() +
-  labs(title = "Race Distribution", x = "Race", y = "Count")
-
-# Bar Plot - Sex
-ggplot(datos, aes(x = sex)) +
-  geom_bar(fill = "pink", color = "black") +
-  theme_minimal() +
-  labs(title = "Sex Distribution", x = "Sex", y = "Count")
-
-# Bar Plot - Native Country
-ggplot(datos, aes(x = native.country)) +
-  geom_bar(fill = "gold", color = "black") +
-  theme_minimal() +
-  labs(title = "Native Country Distribution", x = "Country", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Bar Plot - Income
-ggplot(datos, aes(x = income)) +
-  geom_bar(fill = "steelblue", color = "black") +
-  theme_minimal() +
-  labs(title = "Income Distribution", x = "Income", y = "Count")
-
-
-cor_matrix <- cor(datos[sapply(datos, is.numeric)], use = "complete.obs")
-corrplot(cor_matrix, method = "circle")
-
-library(ggplot2)
-
-ggplot(datos, aes(x = workclass, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggplot(datos, aes(x = education, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggplot(datos, aes(x = occupation, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggplot(datos, aes(x = relationship, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggplot(datos, aes(x = race, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggplot(datos, aes(x = sex, fill = income)) +
-  geom_bar(position = "fill") +
-  labs(title = "Income Proportion by Workclass", y = "Proportion") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-library(rpart)
-library(rpart.plot)
-
-# Build the decision tree model
-tree_model <- rpart(income ~ ., data = datos, method = "class", cp = 0.01)
-
-# Plot the tree
-rpart.plot(tree_model, type = 2, extra = 104, fallen.leaves = TRUE, 
-           main = "Decision Tree for Income")
-
-
-set.seed(24061987)
-library(caret)
-
-# Obtenemos el total de filas que tiene nuestro dataset (50000)
-n = nrow(datos)
-
-# Elegimos de manera aleatoria los indices de la datos, asignando el 70% de los indices a los datos de entrenamiento, el 15% a datos de validación y 15% a datos de testeo
-
-train_indices = sample(1:n, size = 0.7 * n)
-remaining_indices = setdiff(1:n, train_indices)
-val_indices = sample(remaining_indices, size = 0.15 * n)
-test_indices = setdiff(remaining_indices, val_indices)
-
-# Ahora creamos los datasets de train, validation y test, aleatorios, basados en los indices creados
-
-train_set = datos[train_indices, ]
-val_set = datos[val_indices, ]
-test_set = datos[test_indices, ]
-test_set_arbol = datos[test_indices, ]
-
-
-arbol = rpart(formula = income ~ ., data = train_set, method = "class")
-
-# Calculamos la media del set de entrenamiento
-mean_income_train_set = mean(train_set$income, na.rm = TRUE)
-print(mean_income_train_set)
-
-rpart.plot(arbol, box.palette = "orange")
-
-print(rpart.control())
-
-# Predicciones de clase
-predictions_class = predict(arbol, newdata = test_set, type = "class")
-
-# Agregar las predicciones de clase al conjunto de datos
-test_set$predicted_class_income = predictions_class
-
-# Predicciones de probabilidades
-predictions_prob = predict(arbol, newdata = test_set, type = "prob")
-
-# Agregar las predicciones de probabilidades al conjunto de datos
-test_set$predicted_prob_income = predictions_prob
-
-message("Columnas 'predicted_class_income' y 'predicted_prob_income' agregadas exitosamente al dataset.")
-
-generar_matriz_confusion = function(clase_real, clase_predicha){
-# Convert to factors with the correct levels
-  niveles = unique(clase_real)  # Extract unique levels from the real class
-  clase_real_factor = factor(clase_real, levels = niveles)
-  clase_predicha_factor = factor(clase_predicha, levels = niveles)
-  
-  # Calcular la matriz de confusión
-  matriz_confusion = confusionMatrix(clase_predicha_factor, clase_real_factor)
-  
-  # Extraer la tabla de la matriz de confusión
-  cm = matriz_confusion$table
-  
-  # Calcular las longitudes positivas y negativas
-  positive_len = sum(clase_real == 1)
-  negative_len = sum(clase_real == 0)
-  
-  # Normalizar la matriz de confusión
-  cm[1, 1] = cm[1, 1] / negative_len
-  cm[1, 2] = cm[1, 2] / positive_len
-  cm[2, 1] = cm[2, 1] / negative_len
-  cm[2, 2] = cm[2, 2] / positive_len
-  
-  pheatmap(cm,
-           display_numbers = TRUE,
-           color = colorRampPalette(c("coral", "orange"))(50),
-           main = "Confusion Matrix",
-           number_format = "%.2f",
-           cluster_rows = FALSE,
-           cluster_cols = FALSE,
-           legend = TRUE,
-           fontsize_number = 15)
-  
-  return(matriz_confusion)
-}
-
-# Llamar a la función con las columnas del dataset
-matriz_de_confusion = generar_matriz_confusion(test_set$income, test_set$predicted_class_income)
 
 ```
 
