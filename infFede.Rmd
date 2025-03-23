@@ -1,0 +1,146 @@
+---
+title: ''
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+\
+Universidad Torcuato Di Tella
+
+Licenciatura en Tecnología Digital\
+**Tecnología Digital VI: Inteligencia Artificial**
+## Introducción
+
+Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32560 personas, a partir de un censo de 1994 de Estados Unidos (Becker, B. & Kohavi, R. (1996). Adult [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5XW20.). El dataset en cuestión intenta predecir, en base a los datos demográficos, si el ingreso de una persona es mayor o menor a 50000 dólares anuales. Sin embargo, el enfoque que proponemos con este trabajo no apunta a resolver el mismo problema. Nos interesa ver si es posible predecir el sexo de una persona en base al resto de datos demográficos y económicos.
+
+Para ello, primero resulta de vital importancia entender qué variables componen el dataset para definir cuáles usaremos para nuestro modelo. El conjunto de datos está formado por las siguientes variables:
+
+**sex**: el sexo de la persona, puede tomar los valores "Female" (femenino) o "Male" (masculino). Esta variable categórica binaria será la que buscaremos predecir.
+
+**age**: edad de la persona, en años. Variable numérica.
+
+**workclass**: sector del trabajo. Puede ser privado, del govierno, independiente, etc. Variable categórica.
+
+**fnlwgt**: peso asignado a la persona en función a qué tan común es el perfil de esa persona en la polación. Variable numérica.
+
+**education**: máximo nivel de estudios alcanzado. Variable categórica. No usaremos esta variable directamente en el modelo.
+
+**education-num**: valor ordinal para el nivel educativo. Variable numérica.
+
+**marital-status**: estado civil. Variable categórica.
+
+**occupation**: profesión. Variable categórica.
+
+**relationship**: relación de una persona dentro de su familia. Variable categórica. No la usaremos ya que contiene palabras que delatan el sexo (por ejemplo, "Husband" o "Wife").
+
+**race**: origen étnico. Variable categórica.
+
+**capital-gain**: ganancias reportadas. Variable numérica.
+
+**capital-loss**: pérdidas reportadas. Variable numérica.
+
+**hours-per-week**: horas de trabajo semanales. Variable numérica.
+
+**native-country**: país de origen. Variable categórica.
+
+**income**: si el ingreso anual es mayor (>) o menor or igual (<=) a 50000 dólares. Variable categórica.
+
+El enfoque propuesto permitiría identificar tendencias demográficas de la época correspondiente, además de evaluar la posibilidad y efectividad que tienen estos datos a la hora de predecir en conjunto otra característica poblacional. 
+
+Por medio de un árbol de decisión, se podría entender fácilmente qué variables influyen más y de qué manera al determinar en qué categoría cae cada persona. De esta forma, es mucho más directo para encontrar posibles tendencias al ser comprensible visualmente sin necesidad de mucha explicación o conocimiento previos. No sólo eso, sino que trabajar con diferentes tipos de variables en conjunto (categóricas y numéricas) y no atarlas a estrictamente un tipo de relación (como puede ocurrir con modelos lineales) son algunas de las principales ventajas que permiten estos modelos.
+
+## Preparación de datos
+
+Lo primero que decidimos hacer con los datos fue eliminar las columnas que contienen a las variables que decidimos no utilizar para la predicción. Luego, echamos un vistazo a un resumen inicial de los datos.
+
+```{r}
+library(readr)
+# Cargamos el conjunto de datos original, 
+# aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
+datos = read_csv("adult.csv", na = "?", show_col_types = FALSE)
+# Eliminamos las columnas que no utilizaremos.
+datos <- subset(datos, select = -c(education, relationship))
+summary(datos)
+```
+## Estadísticas descriptivas
+Antes de armar el modelo, es de interés analizar cómo se comportan las variables que vamos a estudiar, sus relaciones y pensar qué consecuencias podría tener esto. En primer lugar, queremos ver cómo se distribuyen las observaciones en función de `sex`, es decir, qué tan (des)balanceados están los datos.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculamos el porcentaje de cada categoría.
+sex_counts <- datos %>%
+  count(sex) %>%
+  mutate(porcentaje = n / sum(n) * 100)
+
+# Graficamos la proporción de cada categoría.
+ggplot(sex_counts, aes(x = "", y = porcentaje, fill = sex)) +
+  geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar(theta = "y") +
+  labs(title = "Proporción de cada sexo.", fill = "Sexo") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +
+  theme_void() +  
+  geom_text(aes(label = paste0(round(porcentaje, 1), "%")), 
+            position = position_stack(vjust = 0.5), color = "white", size = 5)
+```
+Podemos observar que hay una mayor proporción de hombres, con una proporción aproximada de 67:33 frente a mujeres. Si bien parecería haber un desbalance, esto no necesariamente implica que el modelo no vaya a poder predecir correctamente.
+
+A continuación queremos estudiar la relación entre algunos pares de variables en detalle.
+
+```{r}
+library(ggplot2)
+
+# Boxplot de la edad en función del sexo
+ggplot(datos, aes(x = sex, y = age, fill = sex)) +
+  geom_boxplot() +
+  labs(title = "Distribución de la edad por sexo", x = "Sexo", y = "Edad") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +  
+  theme_minimal() 
+
+mean(datos$age[datos$sex == "Female"])
+mean(datos$age[datos$sex == "Male"])
+```
+
+En el gráfico de arriba se puede ver una comparación de la distribución de edades en función del sexo. En base al mismo, podemos concluir que en la muestra las mujeres tienen un promedio de edad (alrededor de 37) algo menor que los hombres (alrededor de 39). La diferencia no debería ser lo suficientemente grande para que la variable tenga un gran poder predictivo.
+
+```{r}
+# Tabla de porcentajes.
+prop.table(table(datos$income, datos$sex), margin = 2) * 100
+
+library(ggplot2)
+
+# Gráfico de barras.
+ggplot(datos, aes(x = income, fill = sex)) +
+  geom_bar(position = "fill") +  
+  labs(title = "Distribución de ingreso según el sexo'", x = "Ingresos", y = "Proporción") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) 
+```
+La tabla y el gráfico presentados justo arriba ilustram cómo se distribuyen las observaciones en tanto al ingreso como al sexo. En ambos casos, la mayor parte parecería ganar menos que 50000 dólares. Prestar especial atención a la diferencia entre sexo: un mayor porcentaje de hombres gana más de 50000 dólares comparándolo con las mujeres. Es decir, es más probable que si una persona gana menos de 50000 dólares sea mujer que si gana más.
+
+```{r}
+library(ggplot2)
+
+# Gráfico de densidad.
+ggplot(datos, aes(x = `education-num`, fill = income)) +
+  geom_density(alpha = 0.7, position = 'identity', adjust = 3) + 
+  labs(
+    title = "Densidad de la educación por nivel de ingresos.",
+    x = "Nivel de Educación (education-num)",
+    y = "Densidad"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("lightblue", "yellow")) 
+
+```
+Finalmente, nos interesa ver cómo se relaciona el nivel de ingresos con el máximo nivel de educación completo. De acuerdo al gráfico, las distribuciones parecerían tener la misma tendencia, centrándose alrededor de los valores 10 (algún tipo de título de grado) y 11 (tecnicaturas). Si bien la tendencia y centralización son similares para ambos grupos, se nota un patrón en donde la gente de mayores ingreso tiende a tener un nivel de educación algo mayor a la población de menores ingresos.
+
+-----
+
