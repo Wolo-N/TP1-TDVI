@@ -539,15 +539,64 @@ Comentar mejor y más prolijo lo anterior
 generación de datasets nuevos
 
 ```{r}
-plot(pressure)
+contar_na_por_columna = function(df) {
+  sapply(df, function(columna) sum(is.na(columna)))
+}
+
+generar_datos_na = function(dataset, porcentaje_na) {
+  data_na = dataset
+  cantidad_na = round(porcentaje_na * nrow(dataset))
+  
+  for (col in names(dataset)) {
+    # Contar NAs actuales en la columna
+    na_actuales = sum(is.na(data_na[[col]]))
+    
+    
+    if (na_actuales < cantidad_na) {
+      # Calcular cuántos NA faltan para llegar al porcentaje
+      faltan = cantidad_na - na_actuales
+      
+      # Obtener solo las posiciones que no son NA
+      disponibles = which(!is.na(data_na[[col]]))
+      
+      # Ajustar si faltan más de los disponibles
+      if (faltan > length(disponibles)) {
+        faltan = length(disponibles)
+      }
+      
+      # Si hay disponibles, hacer el sample
+      if (faltan > 0) {
+        indices = sample(disponibles, faltan, replace = FALSE)
+        data_na[indices, col] = NA
+      }
+    }
+  }
+  
+  return(data_na)
+}
+
+print(contar_na_por_columna(datos))
+newdsta =generar_datos_na(datos, 0.20)
+print(contar_na_por_columna(newdsta))
+
 ```
 
 nuevos arboles de decisiones (ES UNA BANDA OPTIMIZAR CADA UNO)
 
 ```{r}
-plot(pressure)
-```
+# Creación de los nueve datasets
+train_20_na = reemplazar_con_na(train_set, 0.20)
+val_20_na = reemplazar_con_na(val_set, 0.20)
+test_20_na = reemplazar_con_na(test_set, 0.20)
 
+train_50_na = reemplazar_con_na(train_set, 0.50)
+val_50_na = reemplazar_con_na(val_set, 0.50)
+test_50_na = reemplazar_con_na(test_set, 0.50)
+
+train_75_na = reemplazar_con_na(train_set, 0.75)
+val_75_na = reemplazar_con_na(val_set, 0.75)
+test_75_na = reemplazar_con_na(test_set, 0.75)
+```
 comparación con punto 5
 
 ```{r}
