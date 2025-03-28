@@ -1,0 +1,384 @@
+---
+title: ''
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+\
+Universidad Torcuato Di Tella
+
+Licenciatura en Tecnología Digital\
+**Tecnología Digital VI: Inteligencia Artificial** \## Introducción
+
+Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32561 personas, a partir de un censo de 1994 de Estados Unidos (Becker, B. & Kohavi, R. (1996).
+Adult [Dataset].
+UCI Machine Learning Repository.
+<https://doi.org/10.24432/C5XW20>.).
+El dataset en cuestión intenta predecir, en base a los datos demográficos, si el ingreso de una persona es mayor o menor a 50000 dólares anuales.
+Sin embargo, el enfoque que proponemos con este trabajo no apunta a resolver el mismo problema.
+Nos interesa ver si es posible predecir el sexo de una persona en base al resto de datos demográficos y económicos.
+
+Para ello, primero resulta de vital importancia entender qué variables componen el dataset para definir cuáles usaremos para nuestro modelo.
+El conjunto de datos está formado por las siguientes variables:
+
+**sex**: el sexo de la persona, puede tomar los valores "Female" (femenino) o "Male" (masculino).
+Esta variable categórica binaria será la que buscaremos predecir.
+
+**age**: edad de la persona, en años.
+Variable numérica.
+
+**workclass**: sector del trabajo.
+Puede ser privado, del govierno, independiente, etc.
+Variable categórica.
+
+**fnlwgt**: peso asignado a la persona en función a qué tan común es el perfil de esa persona en la polación.
+Variable numérica.
+
+**education**: máximo nivel de estudios alcanzado.
+Variable categórica.
+No usaremos esta variable directamente en el modelo.
+
+**education-num**: valor ordinal para el nivel educativo.
+Variable numérica.
+
+**marital-status**: estado civil.
+Variable categórica.
+
+**occupation**: profesión.
+Variable categórica.
+
+**relationship**: relación de una persona dentro de su familia.
+Variable categórica.
+No la usaremos ya que contiene palabras que delatan el sexo (por ejemplo, "Husband" o "Wife").
+
+**race**: origen étnico.
+Variable categórica.
+
+**capital-gain**: ganancias reportadas.
+Variable numérica.
+
+**capital-loss**: pérdidas reportadas.
+Variable numérica.
+
+**hours-per-week**: horas de trabajo semanales.
+Variable numérica.
+
+**native-country**: país de origen.
+Variable categórica.
+
+**income**: si el ingreso anual es mayor (\>) o menor or igual (\<=) a 50000 dólares.
+Variable categórica.
+
+El enfoque propuesto permitiría identificar tendencias demográficas de la época correspondiente, además de evaluar la posibilidad y efectividad que tienen estos datos a la hora de predecir en conjunto otra característica poblacional.
+
+Por medio de un árbol de decisión, se podría entender fácilmente qué variables influyen más y de qué manera al determinar en qué categoría cae cada persona.
+De esta forma, es mucho más directo para encontrar posibles tendencias al ser comprensible visualmente sin necesidad de mucha explicación o conocimiento previos.
+No sólo eso, sino que trabajar con diferentes tipos de variables en conjunto (categóricas y numéricas) y no atarlas a estrictamente un tipo de relación (como puede ocurrir con modelos lineales) son algunas de las principales ventajas que permiten estos modelos.
+
+## Preparación de datos
+
+Lo primero que decidimos hacer con los datos fue eliminar las columnas que contienen a las variables que decidimos no utilizar para la predicción.
+Luego, echamos un vistazo a un resumen inicial de los datos.
+
+```{r}
+library(readr)
+# Cargamos el conjunto de datos original, 
+# aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
+datos = read_csv("adult.csv", na = "?", show_col_types = FALSE)
+# Eliminamos las columnas que no utilizaremos.
+datos <- subset(datos, select = -c(education, relationship))
+summary(datos)
+```
+
+## Estadísticas descriptivas
+
+Antes de armar el modelo, es de interés analizar cómo se comportan las variables que vamos a estudiar, sus relaciones y pensar qué consecuencias podría tener esto.
+En primer lugar, queremos ver cómo se distribuyen las observaciones en función de `sex`, es decir, qué tan (des)balanceados están los datos.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculamos el porcentaje de cada categoría.
+sex_counts <- datos %>%
+  count(sex) %>%
+  mutate(porcentaje = n / sum(n) * 100)
+
+# Graficamos la proporción de cada categoría.
+ggplot(sex_counts, aes(x = "", y = porcentaje, fill = sex)) +
+  geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar(theta = "y") +
+  labs(title = "Proporción de cada sexo.", fill = "Sexo") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +
+  theme_void() +  
+  geom_text(aes(label = paste0(round(porcentaje, 1), "%")), 
+            position = position_stack(vjust = 0.5), color = "white", size = 5)
+```
+
+Podemos observar que hay una mayor proporción de hombres, con una proporción aproximada de 67:33 frente a mujeres.
+Si bien parecería haber un desbalance, esto no necesariamente implica que el modelo no vaya a poder predecir correctamente.
+
+A continuación queremos estudiar la relación entre algunos pares de variables en detalle.
+
+```{r}
+library(ggplot2)
+
+# Boxplot de la edad en función del sexo
+ggplot(datos, aes(x = sex, y = age, fill = sex)) +
+  geom_boxplot() +
+  labs(title = "Distribución de la edad por sexo", x = "Sexo", y = "Edad") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +  
+  theme_minimal() 
+
+mean(datos$age[datos$sex == "Female"])
+mean(datos$age[datos$sex == "Male"])
+```
+
+En el gráfico de arriba se puede ver una comparación de la distribución de edades en función del sexo.
+En base al mismo, podemos concluir que en la muestra las mujeres tienen un promedio de edad (alrededor de 37) algo menor que los hombres (alrededor de 39).
+La diferencia no debería ser lo suficientemente grande para que la variable tenga un gran poder predictivo.
+
+```{r}
+# Tabla de porcentajes.
+prop.table(table(datos$income, datos$sex), margin = 2) * 100
+
+library(ggplot2)
+
+# Gráfico de barras.
+ggplot(datos, aes(x = income, fill = sex)) +
+  geom_bar(position = "fill") +  
+  labs(title = "Distribución de ingreso según el sexo'", x = "Ingresos", y = "Proporción") +
+  scale_fill_manual(values = c("lightgreen", "lightcoral")) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) 
+```
+
+La tabla y el gráfico presentados justo arriba ilustran cómo se distribuyen las observaciones en tanto al ingreso como al sexo.
+En ambos casos, la mayor parte parecería ganar menos que 50000 dólares.
+Prestar especial atención a la diferencia entre sexo: un mayor porcentaje de hombres gana más de 50000 dólares comparándolo con las mujeres.
+Es decir, es más probable que si una persona gana menos de 50000 dólares sea mujer que si gana más.
+
+```{r}
+library(ggplot2)
+
+# Gráfico de densidad.
+ggplot(datos, aes(x = `education-num`, fill = income)) +
+  geom_density(alpha = 0.7, position = 'identity', adjust = 3) + 
+  labs(
+    title = "Densidad de la educación por nivel de ingresos.",
+    x = "Nivel de Educación (education-num)",
+    y = "Densidad"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("lightblue", "yellow")) 
+
+```
+
+Finalmente, nos interesa ver cómo se relaciona el nivel de ingresos con el máximo nivel de educación completo.
+De acuerdo al gráfico, las distribuciones parecerían tener la misma tendencia, centrándose alrededor de los valores 10 (algún tipo de título de grado) y 11 (tecnicaturas).
+Si bien la tendencia y centralización son similares para ambos grupos, se nota un patrón en donde la gente de mayores ingreso tiende a tener un nivel de educación algo mayor a la población de menores ingresos.
+
+## Árbol básico
+
+Primero, definimos una semilla y construimos aleatoriamente los conjuntos de entrenamiento, testeo y validación.
+
+```{r}
+set.seed(1557)
+
+# Cantidad de observaciones totales.
+n <- nrow(datos) 
+
+# Construimos los conjuntos de entrenamiento (70%), testeo (15%) y validación (15%).
+indices_entrenamiento <- sample(1:n, size = 0.7 * n)
+indices_restantes <- setdiff(1:n, indices_entrenamiento)
+indices_validacion <- sample(indices_restantes, size = 0.15 * n)
+indices_testeo <- setdiff(indices_restantes, indices_validacion)
+
+entrenamiento <- datos[indices_entrenamiento, ]
+validacion <- datos[indices_validacion, ]
+testeo <- datos[indices_testeo, ]
+```
+
+Una vez que tenemos los conjuntos preparados, armamos un árbol inicial a partir del conjunto de entrenamiento con rpart.
+Inicialmente, se usan los hiperparámetros por defecto de la librería.
+
+```{r}
+library(rpart)
+rpart.control()
+```
+
+Acá arriba se pueden ver todos los hiperpárametros que utiliza rpart y sus valores por defecto.
+Entendamos un poco en donde interviene cada uno a partir de la documentación.
+
+-   **minsplit**: la cantidad mínima de observaciones que deben haber en un nodo para que se considere hacer una bifurcación desde allí.
+    En este caso, si no hay llegan a ser 20 las observaciones que caen en un nodo determinado, no se intentará dividir desde ese nodo.
+
+-   **minbucket**: la cantidad mínima de observaciones que deben haber en una hoja, es decir, un nodo terminal.
+    Notar la relación entre minsplit y minbucket, en donde ambos parámetros refieren a una cantidad mínima de observaciones en los nodos.
+    En este caso, minbucket está determinado en 7 observaciones, por lo que para que un nodo sea hoja deberá tener al menos 7 observaciones.
+
+-   **cp**: complejidad.
+    El parámetro se encarga de podar ramificaciones del árbol que no mejoren el ajusten en función al factor cp seleccionado.
+    Por defecto vale 0.01, por lo que se le pedirá a cada rama que al menos mejore el ajuste en ese factor (un 1%).
+    Es una forma de ahorrar el costo de computar todos los árboles posibles.
+
+-   **maxcompete**: el número de divisiones competidoras que se guardarán para comparar con el árbol obtenido.
+    Es decir, se guardan las siguientes `maxcomente` opciones de división que son a lo sumo tan efectivas como el árbol principal obtenido.
+    Por defecto vale 4.
+
+-   **maxsurrogate**: el número de divisiones sustitutas que se utilizarán como máximo, usado cuando hay valores faltantes en alguna variable.
+    Es decir, si un dato tiene una variable faltante, se pasará a la primer variable sustituta (que se comporte de forma similar).
+    Por defecto vale 5, es decir, se tienen 5 variables sustitutas por nodo.
+
+-   **usesurrogate**: modo de uso de sustitutos a la hora de bifurcar el árbol.
+    Si vale 0, no se evalúan las observaciones cuando el dato de la variable a mirar es faltante.
+    Si vale 1, se miran en orden las variables sustituto para enviar las observaciones hacia el siguiente nodo.
+    Si vale 2, en el caso donde todas las variables sustituto también faltan, se envían los datos igualmente en el sentido que vaya la mayoría para poder clasificar todos.
+    Por defecto vale 2.
+
+-   **surrogatestyle**: criterio de calidad de variables sustituto.
+    1: cantidad de clasificaciones correctas; 0: porcentaje de clasificaciones correctas.
+    Por defecto vale 0, criterio más estricto cuando faltan demasiados datos.
+
+-   **maxdepth**: máxima profundidad para cualquier nodo del árbol.
+    Por defecto vale 30, y va sumando niveles de a uno a partir del nodo inicial (raíz) que se corresponde al nivel 0.
+
+-   **xval**: cantidad de cross-validations.
+    Por defecto, se hacen 10 de estas validaciones cruzadas.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+arbol <- rpart(formula = sex ~ ., data = entrenamiento, method = "class")
+rpart.plot(arbol)
+```
+
+A partir del árbol inicial generado arriba, se puede ver la estructura que ha tomado el modelo con los hiperparámetros por defecto.
+En partición inicial, se evalúa primero la variable `marital-status`, y (revisando en el código de referencia abajo) se clasifican a las observaciones como hombre si su estado civil es *Married-civ-spouse*, es decir, casado con un civil.
+En esta primer birfurcación se clasificó al 46% del conjunto.
+
+```{r}
+# Nos fijamos las categorías disponibles de estado civil.
+unique(datos$`marital-status`)
+```
+
+En un segundo paso, se evalúa la variable `occupation`, y, en este caso, si una persona trabaja de *Handlers-cleaners* (servicios de limpieza o trabajo pesado), *Craft-repair* (técnicos, plomeros, constructores), *Transport-moving* (choferes), *Farming-fishing* (granjeros o pescadores), *Protective-serv* (servicios de seguridad o protección, como policías, bomberos o guardias de seguridad), *Armed-Forces* (fuerzas armadas) o es desempleada, el árbol predicirá que es hombre.
+En este caso, se clasifica un 11% de los datos.
+
+```{r}
+# Nos fijamos las categorías disponibles de ocupación.
+unique(datos$`occupation`)
+```
+
+En el siguiente corte, se mira nuevamente la variable `marital-status`, pero ahora se clasifica a la persona como mujer si su estado civil es *Divorced* (divorciada), *Married-AF-spouse* (con esposo en fuerzas armadas), *Separated* (no legalmente divorciada pero no cohabitando) o *Widowed* (viuda).
+En esta división se categoriza el 16% de los datos.
+
+Luego, se mira de nuevo `occupation`, y se clasifica como mujer a las personas cuya ocupación es *Adm-clerical* (recepcionistas u oficinistas) o *Priv-house-serv* (empleadas domésticas).
+En este paso se clasifica un 5% de los datos.
+
+El último corte se fija en la variable `hours-per-week`, y en base a un umbral de 39 horas de trabajo semanales se predice que una persona es mujer si trabaja menos del umbral, y hombre en caso contrario.
+
+A modo de comentario, puede verse que las dimensiones de mayor impacto en este árbol son las del trabajo que realiza una persona y su estado civil.
+Se sugiere a partir del modelo que existen ciertas tendencias demográficas en donde algunas tareas son más propensas a ser realizadas por hombres o mujeres en Estados Unidos en 1994.
+
+Resulta curioso notar que el primer corte se base en el estado civil más común del dataset, ya que se esperaría que no revele tanta información o sea considerado como corte principal.
+Esto nos hace pensar que podría deberse tanto al inbalance inicial del conjunto de datos como a causas como que no se tuvo en cuenta esa pureza a la hora de construir el dataset.
+
+```{r}
+#  Vemos que una gran proporción de observaciones de hombres que están casados con un civil.
+sum(entrenamiento$`marital-status` == "Married-civ-spouse" & entrenamiento$sex == "Male") / sum(entrenamiento$`marital-status` == "Married-civ-spouse")
+```
+
+## Predicciones
+
+```{r}
+# Clase predicha
+clase_predicha = predict(arbol, newdata = testeo, type = "class")
+testeo$predicted_sex_class = clase_predicha
+
+# Probabilidades predichas
+probabilidades_predichas = predict(arbol, newdata = testeo, type = "prob")
+testeo$predicted_sex_prob = probabilidades_predichas
+
+```
+
+# Métricas de performance
+
+En esta sección, evaluamos el árbol básico en función a determinadas métricas de rendimiento presentadas a continuación.
+
+## Matriz de confusión
+
+```{r}
+library(MLmetrics)
+matriz_de_confusion <- ConfusionMatrix(y_true = testeo$sex,y_pred = testeo$predicted_sex_class)
+print(matriz_de_confusion)
+```
+La matriz de confusión muestra la cantidad de predicciones en función a si la clase predicha se alineó o no con la clase real. Es decir, el modelo predijo para el conjunto de testeo que 1006 mujeres en efecto lo eran, mientras que para otras 644 las clasificó como hombres. La matriz da una idea poco detallada de cómo le fue al modelo al dar un vistazo a si la clasificación radica mayoritariamente en las celdas apropiadas (en este caso, True Positive y True Negative que serían Female-Female y Male-Male en nuestra matriz).
+
+## Accuracy
+
+```{r}
+library(MLmetrics)
+accuracy <- Accuracy(y_pred = testeo$predicted_sex_class, y_true = testeo$sex)
+print(accuracy)
+```
+
+La Accuracy se calcula a partir de valores de la matriz de confusión y proporciona una métrica concreta. Se calcula como (True Positive + True Negative) (cantidad de predicciones correctas totales) / (Positive + Negative) (total de predicciones). En nuestro caso, dio aproximadamente 0.778, lo que quiere decir que para el conjunto de testeo un 77.8% de las observaciones fueron clasificadas correctamente con el árbol. Esta métrica también podría usarse para estimar que la probabilidad que se clasifique correctamente con el modelo es de 0.778.
+
+## Precision
+
+```{r}
+library(MLmetrics)
+precision_f <- Precision(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Female")
+precision_m <- Precision(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Male")
+print(precision_f)
+print(precision_m)
+```
+
+La Precision consiste en la cantidad de predicciones que efectivamente corresponden a una clase sobre las predicciones totales que se clasificaron en esa clase (True Positive / (True Positive + False Positive)). Esta métrica puede calcularse para cada clase, dando una noción de cuántas personas predichas para cierto sexo en efecto eran del mismo. En este caso, hay una mayor cantidad de Falsos Positivos para el caso de las mujeres (observaciones predichas como mujeres cuando realmente eran hombres) que para los hombres.
+
+## Recall
+
+```{r}
+library(MLmetrics)
+recall_f <- Recall(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Female")
+recall_m <- Recall(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Male")
+print(recall_f)
+print(recall_m)
+```
+
+El Recall, por su parte, refiere a la proporción de predicciones para una clase en particular cuya clase predicha se correspondía con la real (True Positive/Positive). De esta forma, vemos para cada clase qué tan precisamente el modelo predice. Nuevamente, la precisión es mayor prediciendo para hombres (cuántos hombres fueron efectivamente clasificados) que mujeres.
+
+## F1-Score
+
+```{r}
+library(MLmetrics)
+f1_score_f <- F1_Score(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Female")
+f1_score_m <- F1_Score(y_pred = testeo$predicted_sex_class, y_true = testeo$sex, positive = "Male")
+print(f1_score_f)
+print(f1_score_m)
+```
+
+El F1-score es una métrica que busca armonizar Precision y Recall. Para ambas clases, vemos que está ubicado entre medio de la Precision y el Recall. En línea con el patrón visto previamente, el F1-score es mayor para la clase de hombres que de mujeres.
+
+## AUC-ROC
+
+```{r}
+library(MLmetrics)
+vector_sex <- ifelse(testeo$sex == "Male", 0, 1)
+auc <- AUC(y_pred = testeo$predicted_sex_prob[,"Female"], y_true = vector_sex)
+print(auc)
+
+# Graficamos la curva ROC
+library(pROC)
+roc_curve <- roc(vector_sex, testeo$predicted_sex_prob[, "Female"])
+plot(roc_curve, main = "Curva de ROC para predicción de sexo", col = "blue", lwd = 2) 
+```
+
+El área bajo la curva ROC (AUC-ROC) también sirve para medir la capacidad predictiva del modelo. Se busca que el modelo minimice el False Positive Rate (1 - Specificity), es decir, la proporción de FP sobre los negativos, y maximizar el True Positive Rate (= Recall). En este caso, dio un valor de aproximadamente 0.81, lo que indicaría que predice relativamente bien. 
