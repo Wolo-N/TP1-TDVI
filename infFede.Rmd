@@ -172,12 +172,31 @@ ggplot(datos, aes(x = `education-num`, fill = income)) +
   ) +
   theme_minimal() +
   scale_fill_manual(values = c("lightblue", "yellow")) 
-
 ```
 
-Finalmente, nos interesa ver cómo se relaciona el nivel de ingresos con el máximo nivel de educación completo.
+Adicionalmente, os interesa ver cómo se relaciona el nivel de ingresos con el máximo nivel de educación completo.
 De acuerdo al gráfico, las distribuciones parecerían tener la misma tendencia, centrándose alrededor de los valores 10 (algún tipo de título de grado) y 11 (tecnicaturas).
 Si bien la tendencia y centralización son similares para ambos grupos, se nota un patrón en donde la gente de mayores ingreso tiende a tener un nivel de educación algo mayor a la población de menores ingresos.
+
+
+```{r}
+# Cargar librerías necesarias
+library(ggplot2)
+
+# Crear un gráfico de barras agrupadas
+ggplot(datos, aes(x = occupation, fill = sex)) +
+  geom_bar(position = "dodge") +  # Usamos position="dodge" para barras agrupadas
+  labs(
+    title = "Relación entre Ocupación y Sexo",
+    x = "Ocupación",
+    y = "Número de personas",
+    fill = "Sexo"
+  ) +
+  theme_minimal() +  # Para un tema limpio
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotar etiquetas en el eje X para mejor legibilidad
+
+```
+Finalmente, resulta importante analizar la distribución de sexo de acuerdo a los distintos tipos de ocupaciones. En particular, vemos que las mujeres dominan en trabajos de oficina o recepción (*Adm-clerical*) o como empleadas domésticas (*Priv-house-serv*). Por otro lado, los hombres son predominantes particularmente en trabajos de reparación, como pescadores o granjeros, en trabajos pesados o de limpieza, en servicios de seguridad, como choferes  o como operarios/inspectores de máquinas. Esto habla de la existencia de una brecha de género en el tipo de trabajo al que se puede acceder.
 
 ## Árbol básico
 
