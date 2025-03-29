@@ -15,11 +15,7 @@ Universidad Torcuato Di Tella
 Licenciatura en Tecnología Digital\
 **Tecnología Digital VI: Inteligencia Artificial** \## Introducción
 
-Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32561 personas, a partir de un censo de 1994 de Estados Unidos (Becker, B. & Kohavi, R. (1996).
-Adult [Dataset].
-UCI Machine Learning Repository.
-<https://doi.org/10.24432/C5XW20>.).
-El dataset en cuestión intenta predecir, en base a los datos demográficos, si el ingreso de una persona es mayor o menor a 50000 dólares anuales.
+Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32561 personas, a partir de un censo de 1994 de Estados Unidos (Becker, B. & Kohavi, R. (1996). Adult [Dataset]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5XW20>.). El dataset en cuestión intenta predecir, en base a los datos demográficos, si el ingreso de una persona es mayor o menor a 50000 dólares anuales.
 Sin embargo, el enfoque que proponemos con este trabajo no apunta a resolver el mismo problema.
 Nos interesa ver si es posible predecir el sexo de una persona en base al resto de datos demográficos y económicos.
 
@@ -382,3 +378,641 @@ plot(roc_curve, main = "Curva de ROC para predicción de sexo", col = "blue", lw
 ```
 
 El área bajo la curva ROC (AUC-ROC) también sirve para medir la capacidad predictiva del modelo. Se busca que el modelo minimice el False Positive Rate (1 - Specificity), es decir, la proporción de FP sobre los negativos, y maximizar el True Positive Rate (= Recall). En este caso, dio un valor de aproximadamente 0.81, lo que indicaría que predice relativamente bien. 
+
+## Optimizando el modelo
+
+Ahora bien, nos gustaría mejorar la performance del modelo seleccionando los hiperparámetros que mejor resultados proporcionen. Utilizaremos la métrica de AUC-ROC como indicador de rendimiento.
+
+Para evaluar la performance en función al valor de los hiperparámetros *minsplit*, *minbucket* y *maxdepth* definimos un rango de valores finito para cada variable y evaluamos la performance del album entrenado con cada combinación de hiperparámetros con el conjunto de validación para seleccionar el árbol que daba mejor resultado en la validación. RANGO DE VALORES
+
+Primero, decidimos estudiar cómo varía la performance cuando solamente modificamos uno de estos hiperparámetros y dejamos el resto en los valores por defecto.
+
+### Min Split
+```{r}
+resultados_minsplit <- list()
+
+for (minsplit in 0:100) {
+  # Pra cada valor de minsplit, construimos un modelo y lo evaluamos en validación.
+  modelo_temporal = rpart(
+    formula = sex ~ ., 
+    data = entrenamiento, 
+    method = "class", 
+    control = rpart.control(
+      minsplit = as.integer(minsplit), 
+      cp = 0,
+      xval = 0
+    )
+  )
+  
+  predicciones = predict(modelo_temporal, validacion, type = "prob")[,"Female"]
+  vector_sex_val <- ifelse(validacion$sex == "Male", 0, 1)
+  auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+
+  resultados_minsplit <- append(resultados_minsplit, list(Score = auc))
+}
+```
+
+```{r}
+library(ggplot2)
+
+df_resultados <- data.frame(
+  MinSplit = 0:100,
+  AUC = unlist(resultados_minsplit) 
+)
+
+ggplot(df_resultados, aes(x = MinSplit, y = AUC)) +
+  geom_line(color = "lightgreen") +        
+  geom_point(color = "darkgreen") +        
+  ggtitle("AUC Validación vs. Min Split") +
+  xlab("Min Split") +
+  ylab("AUC") +
+  theme_test()+
+  theme(plot.title = element_text(hjust = 0.5))  
+```
+
+Para el caso de minsplit, vemos en el gráfico que la performance va mejorando a medida que los valores se vuelven más grandes, con picos leves alrededor de 40 y 100, indicando que para los valores por defecto, la performance mejora con valores altos. Sin embargo, parecería estar aplanándose, lo que podría interpretarse como cierto límite hasta el cual puede llegarse solamente modificando este hiperparámetro.
+
+### Min Bucket
+```{r}
+resultados_minbucket <- list()
+
+for (mibucket in 1:30) {
+  # Pra cada valor de mibucket, construimos un modelo y lo evaluamos en validación.
+  modelo_temporal = rpart(
+    formula = sex ~ ., 
+    data = entrenamiento, 
+    method = "class", 
+    control = rpart.control(
+      mibucket = as.integer(mibucket),
+      cp = 0,
+      xval = 0
+    )
+  )
+  
+  predicciones = predict(modelo_temporal, validacion, type = "prob")[,"Female"]
+  vector_sex_val <- ifelse(validacion$sex == "Male", 0, 1)
+  auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+
+  resultados_minbucket <- append(resultados_minbucket, list(Score = auc))
+}
+```
+
+```{r}
+library(ggplot2)
+
+df_resultados <- data.frame(
+  MinBucket = 1:30,
+  AUC = unlist(resultados_minbucket)
+)
+
+# Plot
+ggplot(df_resultados, aes(x = MinBucket, y = AUC)) +
+  geom_line(color = "coral") +          
+  geom_point(color = "red") +        
+  ggtitle("AUC Validación vs. Min Bucket") +
+  xlab("Min Bucket") +
+  ylab("AUC") +
+  theme_test()+
+  theme(plot.title = element_text(hjust = 0.5))  
+```
+
+En este caso, como minbucket está relacionada estrictamente con el valor de minsplit podría pensarse que ambas deben variar para notar un cambio importante en la performance, pero se ve que el valor de este hiperparámetro por sí solo no estaría afectando la performance del modelo.
+
+### Max Depth
+```{r}
+resultados_maxdepth <- list()
+
+for (maxdepth in 1:30) {
+  # Pra cada valor de maxdepth, construimos un modelo y lo evaluamos en validación.
+  modelo_temporal = rpart(
+    formula = sex ~ ., 
+    data = entrenamiento, 
+    method = "class", 
+    control = rpart.control(
+      maxdepth = as.integer(maxdepth), 
+      cp = 0,
+      xval = 0
+    )
+  )
+  
+  predicciones = predict(modelo_temporal, validacion, type = "prob")[,"Female"]
+  vector_sex_val <- ifelse(validacion$sex == "Male", 0, 1)
+  auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+
+  resultados_maxdepth <- append(resultados_maxdepth, list(Score = auc))
+}
+```
+
+```{r}
+library(ggplot2)
+
+df_resultados <- data.frame(
+  MaxDepth = 1:30,
+  AUC = unlist(resultados_maxdepth) 
+)
+
+# Plot
+ggplot(df_resultados, aes(x = MaxDepth, y = AUC)) +
+  geom_line(color = "lightblue") +       
+  geom_point(color = "blue") +       
+  ggtitle("AUC Validación vs. Max Depth") +
+  xlab("Max Depth") +
+  ylab("AUC") +
+  theme_test()+
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+Por último, maxdepth presenta una distribución en la cual se alcanza un pico en el valor 12, mientras que después de este valor la precisión del modelo comienza a decrecer lentamente. Se puede asociar este comportamiento a un overfitting del modelo con los datos de entrenamiento, que empeora la performance en otros conjuntos de datos.
+
+### Parámetros en conjunto
+
+Definimos un rango acotado para cada hiperparámetro para armar una grilla donde buscaremos el óptimo.
+
+```{r}
+performance_hiperparametros <- data.frame(MaxDepth = integer(), 
+                             MinBucket = integer(), 
+                             MinSplit = integer(),
+                             AUC = numeric())
+
+# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+for (maxdepth in c(5, 12, 18, 25)) {
+  for (minbucket in c(3,6,9)) {
+    for (minsplit in round(seq(5, 95, length.out = 10))) {
+      
+      modelo_temporal = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(maxdepth), 
+          minbucket = as.integer(minbucket), 
+          minsplit = as.integer(minsplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+      predicciones = predict(modelo_temporal, validacion, type = "prob")[,"Female"]
+      vector_sex_val <- ifelse(validacion$sex == "Male", 0, 1)
+      auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+  
+      performance_hiperparametros <- rbind(performance_hiperparametros, 
+                              data.frame(MaxDepth = maxdepth, 
+                                         MinBucket = minbucket, 
+                                         MinSplit = minsplit, 
+                                         AUC = auc))
+    }
+  }
+}
+```
+
+Una vez obtenidas las mediciones, graficamos para entender el comportamiento interrelacionado de los hiperparámetros.
+
+```{r}
+library(ggplot2)
+
+ggplot(performance_hiperparametros, aes(x = MinSplit, y = AUC, color = as.factor(MaxDepth))) +
+  geom_line() +
+  facet_wrap(~ MinBucket, scales = "free", ncol = 2) +
+  labs(
+    title = "AUC validación vs Min Split, Max Depth y Min Bucket",
+    x = "Min Split",
+    y = "AUC Score",
+    color = "Max Depth"
+  ) +
+  theme_classic()
+```
+
+Cada gráfico corresponde a un valor distinto de minbucket. A su vez, cada valor de maxdepth se visualiza con un color distinto por gráfico. En el eje horizontal puede observarse cómo varían los valores minsplit y el eje vertical corresponde a la performance.
+
+En primer lugar, notamos que el valor de maxdepth que siempre tuvo el mejor rendimiento fue 12, por lo que nos concentraremos en evaluar exclusivamente las líneas verdes. La relación definitivamente más interesante para estudiar es la de minsplit y minbucket. Se puede ver que la variabilidad de la performance es mayor para valores mayores de minbucket, mientras que para valores pequeños la curva es más claramente creciente con respecto a minsplit. En todos los casos de minbucket, sin embargo, vemos que la mejor performance se concentra en valores muy altos de minsplit.
+
+```{r}
+library(plotly)
+
+plot_ly(performance_hiperparametros, 
+        x = ~MinSplit, 
+        y = ~MaxDepth, 
+        z = ~MinBucket, 
+        color = ~AUC, 
+        type = "scatter3d", 
+        mode = "markers",
+         text = ~paste("AUC: ", AUC)) %>%
+  layout(title = "AUC vs Max Depth, Min Split y Min Bucket")
+```
+
+
+El gráfico tridimensional presentado arriba proporciona una visualización un poco más clara de la relación entre las tres variables, además de ser interactivo para poder a su vez comparar lo que sucede con los valores exactos de performance, o analizar la relación entre dos hiperparámetros. Se observa un punto violeta que claramente indica una dirección de empeoramiento de rendimiento, mientras que los puntos más amarillos se concentran en valores donde MaxDepth=12 y MinSplit es alto, variando levemente entre valores de MinBucket. 
+
+Ahora bien, encontremos los valores con mejor performance y construyamos un nuevo árbol para evaluarlo con el conjunto de testeo.
+
+```{r}
+mejor_indice <- which.max(performance_hiperparametros$AUC)
+mejores_hiperparametros <- performance_hiperparametros[mejor_indice, ]
+print(mejores_hiperparametros)
+```
+
+Los mejores hiperparámetros encontrados son MaxDepth=12, MinBucket=3 y MinSplit=85, dando una performance de 0.8530492 en el conjunto de validación. Corroboremos con el de testeo.
+
+```{r}
+library(MLmetrics)
+
+# Armamos el modelo con los hiperparámetros optimizados
+modelo_optimizado = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(mejores_hiperparametros$MaxDepth), 
+          minbucket = as.integer(mejores_hiperparametros$MinBucket), 
+          minsplit = as.integer(mejores_hiperparametros$MinSplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+# Performance modelo optimizado
+predicciones = predict(modelo_optimizado, testeo, type = "prob")[,"Female"]
+vector_sex_testeo <- ifelse(testeo$sex == "Male", 0, 1)
+auc_opt <- AUC(y_pred = predicciones, y_true = vector_sex_testeo)
+
+# Performance modelo original
+auc_original <- AUC(y_pred = testeo$predicted_sex_prob[,"Female"], y_true = vector_sex_testeo)
+
+
+# Graficamos las curva ROC side-to-side
+library(pROC)
+roc_curve_og <- roc(vector_sex, testeo$predicted_sex_prob[, "Female"])
+plot(roc_curve_og, main = "Curvas ROC", col = "lightblue", lwd = 3) 
+
+roc_curve_opt <- roc(vector_sex_testeo, predicciones)
+lines(roc_curve_opt, col = "blue", lwd = 3)
+
+legend("bottomright", legend = c("Árbol original", "Árbol optimizado"), col = c("lightblue", "blue"), lwd = 3)
+
+
+print(paste("AUC-ROC ORIGINAL: ", auc_original))
+print(paste("AUC-ROC OPTIMIZADO: ", auc_opt))
+```
+
+Se tiene entonces que el modelo mejoró en un 3% su rendimiento, y como puede verse en el gráfico efectivamente cubre más área bajo la curva, aunque no se está acercando necesariamente más al extremo deseado (el que maximiza True Positive Rate y minimiza el False Positive Rate). 
+
+## Árbol optimizado: estructura
+
+Una vez construido el árbol con los hiperparámetros optimizados, veamos qué diferencias estructurales tiene con el original.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))  
+rpart.plot(modelo_optimizado, cex = 0.3) 
+```
+
+A comparación del modelo original, este árbol contiene una cantidad mucho mayor de divisiones (es mucho más profundo al tener complejidad 0, vemos que tiene el máximo de 12 niveles de profundidad). Las primeras particiones son idénticas. Es decir, el árbol original parecería ser un subárbol del optimizado. La diferencia en este caso corresponde con que de todos los nodos que previamente eran hojas, ahora se hacen más particiones. Entendiendo esto, nuevamente las variables más relevantes para clasificar son *marital-status* y *occupation*. A medidad que se avanza en los niveles, se utilizan nuevas variables con categorías mucho más especificas como *native-country* (país de origen). Esta categorización tan detallada y profunda podría significar que por detrás está ocurriendo un sobreajuste, y la mejora en preformance de test no necesariamente valga la pena.
+
+## Datos faltantes
+
+A continuación, nos gustaría entender cómo se comportaría el modelo si se tuviera una cantidad fija de datos faltantes por variable predictora.
+
+```{r}
+generar_datos_faltantes <- function(df, columnas, porcentaje) {
+  for (col in columnas) {
+    total_valores <- length(df[[col]])  
+    na_actuales <- sum(is.na(df[[col]]))  
+    na_faltantes <- round(porcentaje * total_valores) - na_actuales 
+    
+    if (na_faltantes > 0) {  
+      indices <- sample(which(!is.na(df[[col]])), na_faltantes)  #
+      df[[col]][indices] <- NA 
+    }
+  }
+  return(df)
+}
+
+# Generamos todos los conjuntos a utilizar
+columnas_predictoras <- setdiff(names(datos), "sex")
+entrenamiento_20_na <- generar_datos_faltantes(df=entrenamiento, columnas=columnas_predictoras, porcentaje=0.2)
+testeo_20_na <- generar_datos_faltantes(df=testeo, columnas=columnas_predictoras, porcentaje=0.2)
+validacion_20_na <- generar_datos_faltantes(df=validacion, columnas=columnas_predictoras, porcentaje=0.2)
+
+entrenamiento_50_na <- generar_datos_faltantes(df=entrenamiento, columnas=columnas_predictoras, porcentaje=0.5)
+testeo_50_na <- generar_datos_faltantes(df=testeo, columnas=columnas_predictoras, porcentaje=0.5)
+validacion_50_na <- generar_datos_faltantes(df=validacion, columnas=columnas_predictoras, porcentaje=0.5)
+
+entrenamiento_75_na <- generar_datos_faltantes(df=entrenamiento, columnas=columnas_predictoras, porcentaje=0.75)
+testeo_75_na <- generar_datos_faltantes(df=testeo, columnas=columnas_predictoras, porcentaje=0.75)
+validacion_75_na <- generar_datos_faltantes(df=validacion, columnas=columnas_predictoras, porcentaje=0.75)
+```
+
+### 20% NA
+Repitamos el procedimiento de maximizar hiperparámetros.
+
+```{r}
+performance_hiperparametros_20 <- data.frame(MaxDepth = integer(), 
+                             MinBucket = integer(), 
+                             MinSplit = integer(),
+                             AUC = numeric())
+
+# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+for (maxdepth in c(5, 12, 18, 25)) {
+  for (minbucket in c(3,6,9)) {
+    for (minsplit in round(seq(5, 95, length.out = 10))) {
+      
+      modelo_temporal = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_20_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(maxdepth), 
+          minbucket = as.integer(minbucket), 
+          minsplit = as.integer(minsplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+      predicciones = predict(modelo_temporal, validacion_20_na, type = "prob")[,"Female"]
+      vector_sex_val <- ifelse(validacion_20_na$sex == "Male", 0, 1)
+      auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+  
+      performance_hiperparametros_20 <- rbind(performance_hiperparametros_20, 
+                              data.frame(MaxDepth = maxdepth, 
+                                         MinBucket = minbucket, 
+                                         MinSplit = minsplit, 
+                                         AUC = auc))
+    }
+  }
+}
+```
+
+
+```{r}
+mejor_indice_20 <- which.max(performance_hiperparametros_20$AUC)
+mejores_hiperparametros_20 <- performance_hiperparametros_20[mejor_indice_20, ]
+print(mejores_hiperparametros_20)
+```
+
+Los mejores hiperparámetros encontrados cuando se tiene un 20% de datos faltantes son MaxDepth=12, MinBucket=3 y MinSplit=95, dando una performance de 0.8193396 en el conjunto de validación. Vemos que la performance se vio reducida en comparación con la optimización previa. Los hiperparámetros seleccionados son muy similares, a diferencia de MinSplit que se incrementó.
+
+```{r}
+library(MLmetrics)
+
+# Armamos el modelo con los hiperparámetros optimizados
+modelo_optimizado_20 = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_20_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(mejores_hiperparametros_20$MaxDepth), 
+          minbucket = as.integer(mejores_hiperparametros_20$MinBucket), 
+          minsplit = as.integer(mejores_hiperparametros_20$MinSplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+# Performance modelo optimizado
+predicciones_20 = predict(modelo_optimizado_20, testeo_20_na, type = "prob")[,"Female"]
+vector_sex_testeo_20 <- ifelse(testeo_20_na$sex == "Male", 0, 1)
+auc_opt_20 <- AUC(y_pred = predicciones_20, y_true = vector_sex_testeo_20)
+```
+
+### 50% NA
+Repitamos el procedimiento de maximizar hiperparámetros.
+
+```{r}
+performance_hiperparametros_50 <- data.frame(MaxDepth = integer(), 
+                             MinBucket = integer(), 
+                             MinSplit = integer(),
+                             AUC = numeric())
+
+# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+for (maxdepth in c(5, 12, 18, 25)) {
+  for (minbucket in c(3,6,9)) {
+    for (minsplit in round(seq(5, 95, length.out = 10))) {
+      
+      modelo_temporal = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_50_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(maxdepth), 
+          minbucket = as.integer(minbucket), 
+          minsplit = as.integer(minsplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+      predicciones = predict(modelo_temporal, validacion_50_na, type = "prob")[,"Female"]
+      vector_sex_val <- ifelse(validacion_50_na$sex == "Male", 0, 1)
+      auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+  
+      performance_hiperparametros_50 <- rbind(performance_hiperparametros_50, 
+                              data.frame(MaxDepth = maxdepth, 
+                                         MinBucket = minbucket, 
+                                         MinSplit = minsplit, 
+                                         AUC = auc))
+    }
+  }
+}
+```
+
+
+```{r}
+mejor_indice_50 <- which.max(performance_hiperparametros_50$AUC)
+mejores_hiperparametros_50 <- performance_hiperparametros_50[mejor_indice_50, ]
+print(mejores_hiperparametros_50)
+```
+
+Los mejores hiperparámetros encontrados cuando se tiene un 50% de datos faltantes son MaxDepth=12, MinBucket=6 y MinSplit=55, dando una performance de 0.7679386 en el conjunto de validación. Vemos que la performance se vio reducida en comparación con la optimización previa y al caso de 20% de datos faltantes. En este caso, MinSplit se vio reducido bastante y MinBucket incrementó. 
+
+```{r}
+library(MLmetrics)
+
+# Armamos el modelo con los hiperparámetros optimizados
+modelo_optimizado_50 = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_50_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(mejores_hiperparametros_50$MaxDepth), 
+          minbucket = as.integer(mejores_hiperparametros_50$MinBucket), 
+          minsplit = as.integer(mejores_hiperparametros_50$MinSplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+# Performance modelo optimizado
+predicciones_50 = predict(modelo_optimizado_50, testeo_50_na, type = "prob")[,"Female"]
+vector_sex_testeo_50 <- ifelse(testeo_50_na$sex == "Male", 0, 1)
+auc_opt_50 <- AUC(y_pred = predicciones_50, y_true = vector_sex_testeo_50)
+
+```
+### 75% NA
+
+Repitamos el procedimiento de maximizar hiperparámetros.
+
+```{r}
+performance_hiperparametros_75 <- data.frame(MaxDepth = integer(), 
+                             MinBucket = integer(), 
+                             MinSplit = integer(),
+                             AUC = numeric())
+
+# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+for (maxdepth in c(5, 12, 18, 25)) {
+  for (minbucket in c(3,6,9)) {
+    for (minsplit in round(seq(5, 95, length.out = 10))) {
+      
+      modelo_temporal = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_75_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(maxdepth), 
+          minbucket = as.integer(minbucket), 
+          minsplit = as.integer(minsplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+      predicciones = predict(modelo_temporal, validacion_75_na, type = "prob")[,"Female"]
+      vector_sex_val <- ifelse(validacion_75_na$sex == "Male", 0, 1)
+      auc <- AUC(y_pred = predicciones, y_true = vector_sex_val)
+  
+      performance_hiperparametros_75 <- rbind(performance_hiperparametros_75, 
+                              data.frame(MaxDepth = maxdepth, 
+                                         MinBucket = minbucket, 
+                                         MinSplit = minsplit, 
+                                         AUC = auc))
+    }
+  }
+}
+```
+
+```{r}
+mejor_indice_75 <- which.max(performance_hiperparametros_75$AUC)
+mejores_hiperparametros_75 <- performance_hiperparametros_75[mejor_indice_75, ]
+print(mejores_hiperparametros_75)
+```
+
+Los mejores hiperparámetros encontrados cuando se tiene un 75% de datos faltantes son MaxDepth=12, MinBucket=6 y MinSplit=75, dando una performance de 0.6913877 en el conjunto de validación. Vemos que la performance se vio reducida en comparación con la optimización previa y al caso de 20% y 50% de datos faltantes.
+
+```{r}
+library(MLmetrics)
+
+# Armamos el modelo con los hiperparámetros optimizados
+modelo_optimizado_75 = rpart(
+        formula = sex ~ ., 
+        data = entrenamiento_75_na, 
+        method = "class", 
+        control = rpart.control(
+          maxdepth = as.integer(mejores_hiperparametros_75$MaxDepth), 
+          minbucket = as.integer(mejores_hiperparametros_75$MinBucket), 
+          minsplit = as.integer(mejores_hiperparametros_75$MinSplit), 
+          cp = 0,
+          xval = 0
+          )
+        )
+  
+# Performance modelo optimizado
+predicciones_75 = predict(modelo_optimizado_75, testeo_75_na, type = "prob")[,"Female"]
+vector_sex_testeo_75 <- ifelse(testeo_75_na$sex == "Male", 0, 1)
+auc_opt_75 <- AUC(y_pred = predicciones_75, y_true = vector_sex_testeo_75)
+
+
+print(paste("AUC-ROC OPTIMIZADO: ", auc_opt))
+print(paste("AUC-ROC OPTIMIZADO CON 20% NAs: ", auc_opt_20))
+print(paste("AUC-ROC OPTIMIZADO CON 50% NAs: ", auc_opt_50))
+print(paste("AUC-ROC OPTIMIZADO CON 75% NAs: ", auc_opt_75))
+```
+En un primer vistazo, se tiene que a medida que la proporción de datos faltantes aumenta, hay un claro decrecimiento de la performance del modelo. Esto tiene sentido considerando que se está trabajando con menos información.
+
+
+
+```{r}
+# Graficamos las curva ROC side-to-side
+color_escala <- colorRampPalette(c("blue", "cyan", "lightblue"))(4)
+library(pROC)
+plot(roc_curve_opt, main = "Curvas ROC", col = color_escala[1], lwd = 3) 
+
+roc_curve_20 <- roc(vector_sex_testeo_20, predicciones_20)
+lines(roc_curve_20, col = color_escala[2], lwd = 3)
+
+roc_curve_50 <- roc(vector_sex_testeo_50, predicciones_50)
+lines(roc_curve_50, col = color_escala[3], lwd = 3)
+
+roc_curve_75 <- roc(vector_sex_testeo_75, predicciones_75)
+lines(roc_curve_75, col = color_escala[4], lwd = 3)
+
+
+legend("bottomright", legend = c("Árbol optimizado", "20% NAs", "50% NAs", "75% NAs"), col = c(color_escala[1], color_escala[2], color_escala[3], color_escala[4]), lwd = 3)
+``` 
+
+
+A comparación con la performance observada del árbol optimizado, en el caso de la falta de datos se va viendo cómo se reduce el rendimiento a medida que aumentan los valores faltantes. 
+
+Ahora bien, una pregunta totalmente válida puede ser: dado un modelo entrenado con datos faltantes, ¿qué tan bien predicen sobre un conjunto de testeo que no tiene tantos datos incompletos? Para entender esto, pusimos a prueba los modelos construidos con datos faltantes fijos frente al conjunto de testeo original, sin datos faltantes creados artificialmente.
+
+
+```{r}
+vector_sex_testeo <- ifelse(testeo$sex == "Male", 0, 1)
+
+# Performance modelo optimizado
+predicciones_20_alt = predict(modelo_optimizado_20, testeo, type = "prob")[,"Female"]
+auc_opt_20_alt <- AUC(y_pred = predicciones_20_alt, y_true = vector_sex_testeo)
+
+predicciones_50_alt = predict(modelo_optimizado_50, testeo, type = "prob")[,"Female"]
+auc_opt_50_alt <- AUC(y_pred = predicciones_50_alt, y_true = vector_sex_testeo)
+
+predicciones_75_alt = predict(modelo_optimizado_75, testeo, type = "prob")[,"Female"]
+auc_opt_75_alt <- AUC(y_pred = predicciones_75_alt, y_true = vector_sex_testeo)
+
+
+# Graficamos las curva ROC side-to-side
+color_escala <- colorRampPalette(c("blue", "cyan", "lightblue"))(4)
+library(pROC)
+plot(roc_curve_opt, main = "Curvas ROC Alternativas", col = color_escala[1], lwd = 3) 
+
+roc_curve_20_alt <- roc(vector_sex_testeo, predicciones_20_alt)
+lines(roc_curve_20_alt, col = color_escala[2], lwd = 3)
+
+roc_curve_50_alt <- roc(vector_sex_testeo, predicciones_50_alt)
+lines(roc_curve_50_alt, col = color_escala[3], lwd = 3)
+
+roc_curve_75_alt <- roc(vector_sex_testeo, predicciones_75_alt)
+lines(roc_curve_75_alt, col = color_escala[4], lwd = 3)
+
+
+legend("bottomright", legend = c("Árbol optimizado", "20% NAs", "50% NAs", "75% NAs"), col = c(color_escala[1], color_escala[2], color_escala[3], color_escala[4]), lwd = 3)
+``` 
+
+En este caso, las curvas están práctiamente superpuestas, lo que podría suponer que su capacidad predictiva en realidad no ha decrecido tanto para evaluar conjuntos de datos que no están tan incompletos.
+
+```{r}
+vector_sex_testeo <- ifelse(testeo$sex == "Male", 0, 1)
+
+# Performance modelo optimizado
+predicciones_20_alt = predict(modelo_optimizado_20, testeo, type = "prob")[,"Female"]
+auc_opt_20_alt <- AUC(y_pred = predicciones_20_alt, y_true = vector_sex_testeo)
+
+predicciones_50_alt = predict(modelo_optimizado_50, testeo, type = "prob")[,"Female"]
+auc_opt_50_alt <- AUC(y_pred = predicciones_50_alt, y_true = vector_sex_testeo)
+
+predicciones_75_alt = predict(modelo_optimizado_75, testeo, type = "prob")[,"Female"]
+auc_opt_75_alt <- AUC(y_pred = predicciones_75_alt, y_true = vector_sex_testeo)
+
+print(paste("AUC-ROC OPTIMIZADO: ", auc_opt))
+print(paste("AUC-ROC 20% ALT: ", auc_opt_20_alt))
+print(paste("AUC-ROC 50% ALT: ", auc_opt_50_alt))
+print(paste("AUC-ROC 75% ALT: ", auc_opt_75_alt))
+``` 
+Observando los valores obtenidos, la diferencia de métricas no es tan alta, e incluso parecería ser que se mejoró la predicción en el caso de 20% de datos faltantes.
+
+## Conclusiones
+
+
+
