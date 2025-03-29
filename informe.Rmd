@@ -23,6 +23,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Para este trabajo práctico decidimos utilizar una base de datos compuesta por 32560 entradas de un censo realizado en Estados Unidos en el año 1994. En esta, se busca relacionar varios datos sobre cada individuo, como edad, sexo, nivel de educacion, etc. con el ingreso anual de estos mismos, midiendo si se encuentra por debajo o por arriba de USD \$50,000 dólares.
 
+Pero, en esta instancia, decidimos abordar esta misma base de datos con otro angulo. Dado que el problema usual es predecir *income* dadas todas las variables predictoras, luego de comenzar con esta aproximacion al problema, decidimos que podiamos corrernos del camino conocido dando vuelta este problema.
+
+¿Que si en vez de predecir el salario de una persona dadas sus características, pudiesemos predecir el sexo de la persona dado su salario y otras características?
+
+Esto nos daría un mirada muy profunda sobre como estaban establecidos los roles de genero en el 1994 (cuando se recolectaron estos datos). Revelando así, como cada variable predictora impacta en la matriz que predice el genero de su combinación.
+
 Esta misma base de datos se puede encontrar en: <https://archive.ics.uci.edu/dataset/2/adult>.
 
 Para entender mejor esta base de datos, veamos las variables principales que la componen:\
@@ -57,7 +63,7 @@ Para entender mejor esta base de datos, veamos las variables principales que la 
 
 -   Tech-support, Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty, Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing, Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces.
 
-***relationship***: describe la relación de este individuo con otros en su hogar. Por ejemplo, puede ser esposo. Esta variable es algo redundante con el estado civil y tal vez no se use.
+***relationship***: describe la relación de este individuo con otros en su hogar. Por ejemplo, puede ser esposo.
 
 -   Wife, Own-child, Husband, Not-in-family, Other-relative, Unmarried.
 
@@ -91,27 +97,32 @@ Para entender mejor esta base de datos, veamos las variables principales que la 
 
 -   Male, Female.
 
-
-
-En este trabajo práctico buscaremos predecir la variable *sex* utilizando como contexto las otras variables. Esto no fue así desde el comienzo, sino que comenzamos queriendo predecir el ingreso(\<=50K o \>50K), pero al familiarizarnos con la base de datos, decidimos que seria mas interesante predecir el sexo de la persona, dadas todas las condiciones. Esto nos va a dar una mirada única y mas profunda sobre las diferencias entre el hombre y la mujer en los años noventa, en Estados Unidos dados los datos mencionados.
-
-Con esta base de datos, los árboles de decisión seran relativamente fáciles de interpretar y visualizar, lo que permite entender cómo las diferentes variables predictoras influyen en la predicción de si una persona ganaría mas de USD \$50,000 o no.
+Con esta base de datos, los árboles de decisión seran relativamente fáciles de interpretar y visualizar, lo que permite entender cómo las diferentes variables predictoras influyen en la predicción de si una persona es hombre o mujer.
 
 Las características intrínsecas de nuestro conjunto de datos, como la combinación de variables categóricas y numéricas, la posible presencia de relaciones no lineales, y la necesidad de interpretabilidad hacen que el uso de árboles de decisión sea una elección justificada y adecuada para nuestro análisis de predicción de salarios.
 
 ## Observación de los Datos (2)
 
-SUMMARY, ESTADÍSTICAS (ver practica)
-
 ```{r}
 library(readr)
-# Cargamos el conjunto de datos original, 
-# aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
+
+# Cargamos el conjunto de datos original, aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
 datos = read_csv("adult.csv", na = "?", show_col_types = FALSE)
+
 # Eliminamos las columnas que no utilizaremos.
 datos <- subset(datos, select = -c(education, relationship))
 summary(datos)
 ```
+
+Para comenzar este analisis, debemos ajustar la base de datos en torno a lo que buscamos encontrar, eliminando variables predictoras repetidas, o que generen por si mismas una predicción obvia sobre lo que buscamos predecir. Por esto decidimos eliminar dos columnas:
+
+1.  ***education:*** el nivel educativo más alto alcanzado por el individuo, expresado en un string.
+
+    -   Dado que tambien tenemos la variable ***education-num***, que expresa lo mismo pero con un int en vez de string, decidimos eliminar la columna entera para evitar duplicados.
+
+2.  ***relationship***: describe la relación de este individuo con otros en su hogar.
+
+    -   Esta variable es un poco redundante con ***marital-status**,* ya que por mas que sus entradas son distntas la informacion que aportan es muy parecida, pero mas importantemente
 
 A partir del summary podemos empezar a comprender la distribucion de los datos, podemos ver como los encuestados tienen edades entre los 17 y 90 años, con una edad promedio de 37. Pero con este simple analisis no podemos ver informacion compleja de nuestras variables, como por ejemplo la relacion que tiene la edad de una persona con su salario. Para esto, a continuación vamos a graficar estas relaciones con el fin de entender con mayor profundidad la incidencia que tienen las variables predictoras sobre nuestra variable a predecir.
 
@@ -126,20 +137,24 @@ ggplot(datos, aes(x = sex, y = age, fill = sex)) +
   scale_y_continuous(breaks = seq(0, 100, 10)) +
   theme_minimal()
 ```
-A simple vista podemos ver la distribucion etaria para ambos sexos, con la edad promedio de los hombres apenas mayor que la de las mujeres.  
 
+A simple vista podemos ver la distribucion etaria para ambos sexos, con la edad promedio de los hombres apenas mayor que la de las mujeres.
 
 ```{r}
-ggplot(datos, aes(x = education, fill = sex)) +
-  geom_bar(alpha = 0.8, position = "fill") +
-  labs(title = "Proporción de Nivel Educativo por Sexo",
-       x = "Nivel Educativo", y = "Proporción") +
+ggplot(datos, aes(x = `education-num`, fill = sex)) +
+  geom_bar(position = "fill", alpha = 0.8) +
+  labs(
+    title = "Proporción de Nivel Educativo por Sexo",
+    x = "Nivel Educativo",
+    y = "Proporción"
+  ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 ```
-En este gráfico podemos ver una clara diferencia entre la cantidad de mujeres y varones en todos los niveles de educación. En muchos, la cantidad de mujeres osila cerca de un cuarto en relacion a la cantidad de hombres que cumplieron ese nivel educativo. 
 
+En este gráfico podemos ver una clara diferencia entre la cantidad de mujeres y varones en todos los niveles de educación. En muchos, la cantidad de mujeres osila cerca de un cuarto en relacion a la cantidad de hombres que cumplieron ese nivel educativo.
 
 ```{r}
 ggplot(datos, aes(x = sex, fill = income)) +
@@ -148,14 +163,14 @@ ggplot(datos, aes(x = sex, fill = income)) +
        x = "Sexo", y = "Proporción") +
   theme_minimal()
 ```
-Al analizar el salario vemos como se sigue ampliando la brecha. En promedio, 1 de cada 3 hombres ganan mas de 50k al año, mientras que ese numero para las mujeres se acerca a 1 de cada 8.
 
+Al analizar el salario vemos como se sigue ampliando la brecha. En promedio, 1 de cada 3 hombres ganan mas de 50k al año, mientras que ese numero para las mujeres se acerca a 1 de cada 8.
 
 ```{r}
 library(ggplot2)
 library(scales)  # Para mostrar en %
 
-ggplot(datos, aes(x = hours.per.week, fill = sex)) +
+ggplot(datos, aes(x = `hours-per-week`, fill = sex)) +
   geom_histogram(aes(y = after_stat(count / sum(count))),
                  position = "dodge", alpha = 0.6, bins = 20) +
   labs(title = "Horas Trabajadas por Semana según Sexo (Proporción)",
@@ -164,14 +179,15 @@ ggplot(datos, aes(x = hours.per.week, fill = sex)) +
   scale_x_continuous(breaks = seq(0, 100, 10))
   theme_minimal()
 ```
-Aquí tambien vemos una discrepancia, mientras que las mujeres dominan el mercado laboral en roles de menos de 40 horas semanales, a partir de ese numero, los hombres se llevan la delantera con margenes gigantescos. 
+
+Aquí tambien vemos una discrepancia, mientras que las mujeres dominan el mercado laboral en roles de menos de 40 horas semanales, a partir de ese numero, los hombres se llevan la delantera con margenes gigantescos.
 
 ## Árbol básico (3)
 
 División datos, semilla
 
 ```{r}
-set.seed(24061987)
+set.seed(0)
 
 # Obtenemos el total de filas que tiene nuestro dataset (32561)
 n = nrow(datos)
@@ -200,8 +216,8 @@ library(rpart.plot)
 arbol = rpart(formula = sex ~ ., data = train_set, method = "class")
 
 # Calculamos la media del set de entrenamiento
-mean_popularity_train_set = mean(train_set$sex, na.rm = TRUE)
-print(mean_popularity_train_set)
+mean_sex_train_set = mean(train_set$sex, na.rm = TRUE)
+print(mean_sex_train_set)
 
 rpart.plot(arbol, box.palette = "orange")
 
@@ -216,9 +232,7 @@ Los hiperparámetros más relevantes y su valor por defecto en rpart son:
 
 -   *minbucket* = round(minsplit / 3) =\> 20/3 = 6.66 ≈ 7 --\> Por defecto, es aproximadamente un tercio de minsplit y limita el número mínimo de observaciones que debe tener un nodo terminal.
 
--   (complexity parameter) *cp* = 0.01--\> Controla la poda del árbol, en donde un valor de 0.01 significa que una división debe disminuir el error relativo en al menos un 1% para ser considerada.
-    Un valor de 1 se corresponde con un árbol sin divisiones, mientras que un valor de 0, con un árbol de profundidad máxima.
-    Sólo se agregan divisiones cuando el costo de agregarlas es menor al valor de *cp*.
+-   (complexity parameter) *cp* = 0.01--\> Controla la poda del árbol, en donde un valor de 0.01 significa que una división debe disminuir el error relativo en al menos un 1% para ser considerada. Un valor de 1 se corresponde con un árbol sin divisiones, mientras que un valor de 0, con un árbol de profundidad máxima. Sólo se agregan divisiones cuando el costo de agregarlas es menor al valor de *cp*.
 
 -   *maxdepth* = 30 --\> un valor de 30 permite que el árbol tenga hasta 30 niveles de profundidad, este hiperparámetro controla la profundiad del mismo.
 
@@ -226,22 +240,15 @@ Los hiperparámetros más relevantes y su valor por defecto en rpart son:
 
 -   *maxcompete* = 4 --\> una estimación de 4 implica que retendrán las 4 mejores divisiones alternativas en cada nodo.
 
--   *maxsurrogate* = 5 --\> define el número máximo de variables sustitutas a retener en cada nodo.
-    Las variables sustitutas se utilizan para manejar datos faltantes.
-    Un valor de 5 significa que el algoritmo retendrá hasta 5 variables sustitutas por nodo.
+-   *maxsurrogate* = 5 --\> define el número máximo de variables sustitutas a retener en cada nodo. Las variables sustitutas se utilizan para manejar datos faltantes. Un valor de 5 significa que el algoritmo retendrá hasta 5 variables sustitutas por nodo.
 
--   *usesurrogate* = 2 --\> controla cómo se utilizan las variables sustitutas para manejar datos faltantes.
-    Los valores posibles son:
+-   *usesurrogate* = 2 --\> controla cómo se utilizan las variables sustitutas para manejar datos faltantes. Los valores posibles son:
 
-    0 = No se utilizan variables sustitutas.
-    1 = Se utilizan variables sustitutas solo para dividir los datos.
-    2 = Se utilizan variables sustitutas tanto para dividir los datos como para asignar observaciones a nodos terminales.
+    0 = No se utilizan variables sustitutas. 1 = Se utilizan variables sustitutas solo para dividir los datos. 2 = Se utilizan variables sustitutas tanto para dividir los datos como para asignar observaciones a nodos terminales.
 
--   *surrogatestyle* = 0 --\> define el estilo de selección de variables sustitutas.
-    Los valores posibles son:
+-   *surrogatestyle* = 0 --\> define el estilo de selección de variables sustitutas. Los valores posibles son:
 
-    0 = Se seleccionan las variables sustitutas basándose en la reducción del error.
-    1 = Se seleccionan las variables sustitutas basándose en la similitud con la variable principal.
+    0 = Se seleccionan las variables sustitutas basándose en la reducción del error. 1 = Se seleccionan las variables sustitutas basándose en la similitud con la variable principal.
 
 ```{r}
 nrow(datos)
@@ -515,8 +522,8 @@ plot_ly(resultados_auc,
         text = ~paste("AUC: ", AUC)) %>%
   layout(title = "AUC vs Max Depth, Min Split y Min Bucket")
 ```
-arbol con mejor performance en test
-análisis combinado
+
+arbol con mejor performance en test análisis combinado
 
 ```{r}
 plot(pressure)
@@ -567,7 +574,7 @@ generar_datos_na = function(dataset, porcentaje_na) {
       # Si hay disponibles, hacer el sample
       if (faltan > 0) {
         indices = sample(disponibles, faltan, replace = FALSE)
-        data_na[indices, col] = NA
+        data_na[[col]][indices] = NA
       }
     }
   }
@@ -585,24 +592,214 @@ nuevos arboles de decisiones (ES UNA BANDA OPTIMIZAR CADA UNO)
 
 ```{r}
 # Creación de los nueve datasets
-train_20_na = reemplazar_con_na(train_set, 0.20)
-val_20_na = reemplazar_con_na(val_set, 0.20)
-test_20_na = reemplazar_con_na(test_set, 0.20)
+train_20_na = generar_datos_na(train_set, 0.20)
+val_20_na = generar_datos_na(val_set, 0.20)
+test_20_na = generar_datos_na(test_set, 0.20)
 
-train_50_na = reemplazar_con_na(train_set, 0.50)
-val_50_na = reemplazar_con_na(val_set, 0.50)
-test_50_na = reemplazar_con_na(test_set, 0.50)
+train_50_na = generar_datos_na(train_set, 0.50)
+val_50_na = generar_datos_na(val_set, 0.50)
+test_50_na = generar_datos_na(test_set, 0.50)
 
-train_75_na = reemplazar_con_na(train_set, 0.75)
-val_75_na = reemplazar_con_na(val_set, 0.75)
-test_75_na = reemplazar_con_na(test_set, 0.75)
+train_75_na = generar_datos_na(train_set, 0.75)
+val_75_na = generar_datos_na(val_set, 0.75)
+test_75_na = generar_datos_na(test_set, 0.75)
 ```
+
 comparación con punto 5
 
 ```{r}
+optimizar_arbol_grid <- function(train_set, val_set, limites) {
+  # Generar todas las combinaciones posibles de hiperparámetros
+  grid <- expand.grid(limites)
+
+  resultados <- list()
+  
+  for (i in 1:nrow(grid)) {
+    params <- grid[i, ]
+    
+    # Evaluar el árbol con los parámetros actuales
+    score <- evaluar_arbol(
+      maxdepth = params$maxdepth,
+      minsplit = params$minsplit,
+      minbucket = params$minbucket,
+      train_set = train_set,
+      val_set = val_set
+    )
+    
+    resultados[[i]] <- c(params, score = score)
+  }
+
+  # Convertir la lista a data.frame
+  resultados_df <- do.call(rbind, lapply(resultados, as.data.frame))
+
+  # Elegir la combinación con mejor score
+  mejor_modelo <- resultados_df[which.max(resultados_df$score), ]
+  
+  return(list(mejor_modelo = mejor_modelo, resultados = resultados_df))
+}
+
+
+crear_arbol = function(depth, split, bucket){
+  nuevo_arbol = rpart(
+  formula = sex ~ ., 
+  data = train_20_na, 
+  method = "class", 
+  control = rpart.control(
+    maxdepth = depth, 
+    minsplit = split, 
+    minbucket = bucket,
+    cp = 0,
+    xval = 0
+  )
+)
+  
+  nuevo_arbol
+}
+```
+
+```{r}
+
+# Buscamos hiperparametros óptimos para:
+
+# 20% de los datos faltantes
+
+result_20_NA = optimizar_arbol(train_20_na,val_20_na, 30,15)
+
+result_data_20_NA = result_20_NA$History
+
+best_hiper_20 = result_20_NA$Best_Par
+
+# 50% de los datos faltantes
+
+result_50_NA = optimizar_arbol(train_50_na,val_50_na, 30,15)
+
+result_data_50_NA = result_50_NA$History
+
+best_hiper_50 = result_50_NA$Best_Par
+
+# 75% de lo datos faltantes
+
+result_75_NA = optimizar_arbol(train_75_na,val_75_na, 30,15)
+
+result_data_75_NA = result_75_NA$History
+
+best_hiper_75 = result_75_NA$Best_Par
 
 ```
 
+
+```{r}
+# Ahora creamos los 3 modelos utilizando los hiperparametros encontrados
+
+mejor_arbol_20_na = crear_arbol(best_hiper_20[1],best_hiper_20[2],best_hiper_20[3])
+
+mejor_arbol_50_na = crear_arbol(best_hiper_50[1],best_hiper_50[2],best_hiper_50[3])
+
+mejor_arbol_75_na = crear_arbol(best_hiper_75[1],best_hiper_75[2],best_hiper_75[3])
+
+```
+
+
+```{r}
+
+predecir_y_calcular_score = function(arbol, set_test) {
+  predicciones_modelo = predict(arbol, newdata = set_test, type = "prob")[,2]
+  
+  set_test$predicciones_optimas = predicciones_modelo
+  set_test$predicciones_optimas = ifelse(set_test$predicciones_optimas >= 0.5, 1, 0)
+  set_test$predicciones_optimas = as.factor(set_test$predicciones_optimas)
+  
+  curva_optimizada = roc(set_test$sex, predicciones_modelo)
+  
+  auc_score = auc(curva_optimizada)
+  
+  auc_score
+}
+
+# Predicciones y performance con el 20% de los datos faltantes
+
+auc_score_20_NA = predecir_y_calcular_score(mejor_arbol_20_na,test_20_na)
+
+curva_roc_20_NA = curva_AUC_ROC(test_20_na$predicted_class_sex, test_20_na$sex)
+
+# Predicciones y performance con el 50% de los datos faltantes
+
+auc_score_50_NA = predecir_y_calcular_score(mejor_arbol_50_na,test_50_na)
+
+curva_roc_50_NA = curva_AUC_ROC(test_50_na$predicted_class_sex, test_50_na$sex)
+
+# Predicciones y performance con el 75% de los datos faltantes
+
+auc_score_75_NA = predecir_y_calcular_score(mejor_arbol_75_na,test_75_na)
+
+curva_roc_75_NA = curva_AUC_ROC(test_75_na$predicted_class_sex, test_75_na$sex)
+
+```
+
+
+```{r}
+graficar_curvas_ROC = function(curva_1, curva_2, titulo_1, titulo_2) {
+  
+  # Graficar la primera curva
+  plot(curva_1$curva_roc, col = "blue", lwd = 3, main = "Curvas ROC", xlab = "Tasa de Falsos Positivos", ylab = "Tasa de Verdaderos Positivos")
+  
+  # Añadir la segunda curva al mismo gráfico
+  lines(curva_2$curva_roc, col = "red", lwd = 3)
+  
+  # Añadir una leyenda para diferenciar las curvas
+  legend("bottomright", legend = c(titulo_1, titulo_2), col = c("blue", "red"), lwd = 3)
+  
+  
+}
+
+```
+
+
+```{r}
+
+auc_score_mejor_arbol
+
+auc_score_20_NA
+
+graficar_curvas_ROC(curva_roc_20_NA, curva_optimizada, "Curva árbol 20% NA", "Curva árbol optimizado")
+
+```
+
+
+```{r}
+
+auc_score_mejor_arbol
+
+auc_score_50_NA
+
+graficar_curvas_ROC(curva_roc_50_NA, curva_optimizada, "Curva árbol 50% NA", "Curva árbol optimizado")
+
+```
+
+
+
+```{r}
+
+auc_score_mejor_arbol
+
+auc_score_75_NA
+
+graficar_curvas_ROC(curva_roc_75_NA, curva_optimizada, "Curva árbol 75 NA", "Curva árbol optimizado")
+
+```
+
+
+```{r}
+
+auc_score_mejor_arbol
+
+score_modelo_20_NA_con_set_completo = predecir_y_calcular_score(mejor_arbol_20_na,test_set)
+
+score_modelo_50_NA_con_set_completo = predecir_y_calcular_score(mejor_arbol_50_na,test_set)
+
+score_modelo_75_NA_con_set_completo = predecir_y_calcular_score(mejor_arbol_75_na,test_set)
+
+```
 Chamuyo final
 
 ## Conclusión (8)
