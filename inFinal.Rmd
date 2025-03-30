@@ -14,46 +14,51 @@ Universidad Torcuato Di Tella
 
 Licenciatura en Tecnología Digital
 
-# **Tecnología Digital VI: Inteligencia Artificial** TP1
+Federico Peitti y Nicolás Wolodarsky Franke
+
+# **Tecnología Digital VI: Inteligencia Artificial** 
+# TP1
 
 ## Introducción
 
-Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32561 personas, a partir de un censo de 1994 de Estados Unidos (Becker, B. & Kohavi, R. (1996).
+Para la realización del trabajo, seleccionamos un dataset que contiene información demográfica de 32561 personas, a partir de un censo de 1994 realizado en Estados Unidos (Becker, B. & Kohavi, R. (1996).
 Adult [Dataset].
 UCI Machine Learning Repository.
 <https://doi.org/10.24432/C5XW20>.).
 El dataset en cuestión intenta predecir, en base a los datos demográficos, si el ingreso de una persona es mayor o menor a \$50000 dólares anuales.
 
-Pero, en esta instancia, decidimos abordar esta misma base de datos con otro angulo.
-Dado que el problema usual es predecir *income* dadas todas las variables predictoras, pero luego de comenzar con esta aproximación al problema, decidimos que podiamos corrernos del camino conocido dando vuelta este problema.
+Pero, en esta instancia, decidimos abordar esta misma base de datos desde otro ángulo.
 
-¿Que si en vez de predecir el salario de una persona dadas sus características, pudiesemos predecir el sexo de la persona dado su salario y otras características relevadas en el censo?
+¿Qué tal si en vez de predecir el salario de una persona dadas sus características demográficas, pudiésemos predecir el sexo de la persona a partir del resto de información proporcionada por el censo?
 
-Esto nos daría un mirada muy profunda sobre como estaban establecidos los roles de genero en el 1994 (cuando se recolectaron estos datos).
-Revelando así, como cada combinacion de variables predictoras impactan en la matriz que predice el genero de la observación.
+Esto nos daría un mirada muy profunda sobre cómo estaban establecidos los roles de género en el año 1994 (cuando se recolectaron estos datos), revelando así cómo cada combinación de variables predictoras impactan a la hora de predecir el sexo.
 
-Para ello, primero resulta de vital importancia entender qué variables componen el dataset para definir cuáles usaremos para nuestro modelo.
+El interés relacionado a crear este tipo de modelo predictivo no está atado estrictamente a la variable de sexo con la que se trabajará de aquí en adelante, sino que más bien tiene que ver con la posibilidad de recuperar información demográfica faltante (ya sea a partir de este tipo de conjunto de datos proveniente de censos), que puede tener mucha utilidad a la hora de documentar o para aplicaciones como investigación sociológica. 
+
+Yendo más en profundidad con el caso específico del sexo, un modelo predictivo podría proporcionar una utilidad muy interesante (si fuera lo suficientemente confiable e insesgado, muy importante!!). Por ejemplo, se podría utilizar para validar identidades de usuarios y así evitar fraudes, en sectores de marketing para segmentar el mercado y definir claramente a un grupo de usuarios objetivo, o incluso en sistemas de salud que necesitan verificar datos de pacientes.
+
+Entonces, para preparar este modelo predictivo, primero resulta de vital importancia entender qué variables componen el dataset para definir cuáles usaremos para nuestro modelo.
 El conjunto de datos está formado por las siguientes variables:
 
 ### Variables Predictoras
 
 ***age***: la edad de la persona, en años.
 
--   Entero mayor a 0.
+-   Entero mayor o igual a 0.
 
-***workclass***: representa el estado laboral general del individuo.
+***workclass***: representa el estado laboral y sector generales del individuo.
 
 -   Private, Self-emp-not-inc, Self-emp-inc, Federal-gov, Local-gov, State-gov, Without-pay, Never-worked.
 
 ***fnlwgt***: peso asignado a la persona en función a qué tan común es el perfil de esa persona en la población.
 
--   Entero mayor a 0.
+-   Entero mayor o igual a 0.
 
 ***education***: el nivel educativo más alto alcanzado por el individuo.
 
 -   Bachelors, Some-college, 11th, HS-grad, Prof-school, Assoc-acdm, Assoc-voc, 9th, 7th-8th, 12th, Masters, 1st-4th, 10th, Doctorate, 5th-6th, Preschool.
 
-***education-num*****:** el nivel educativo en formato numérico
+***education-num*****:** el nivel educativo en formato numérico (le asigna un orden a *education*).
 
 -   Entero mayor a 0.
 
@@ -62,7 +67,7 @@ Donde Married-civ-spouse se refiere a cónyuge civil y Married-AF-spouse a cóny
 
 -   Married-civ-spouse, Divorced, Never-married, Separated, Widowed, Married-spouse-absent, Married-AF-spouse.
 
-***occupation*****:** tipo general de ocupación del individuo.
+***occupation*****:** tipo de profesión del individuo.
 
 -   Tech-support, Craft-repair, Other-service, Sales, Exec-managerial, Prof-specialty, Handlers-cleaners, Machine-op-inspct, Adm-clerical, Farming-fishing, Transport-moving, Priv-house-serv, Protective-serv, Armed-Forces.
 
@@ -83,15 +88,15 @@ Por ejemplo, puede ser esposo.
 
 -   Entero mayor o igual a 0.
 
-***hours-per-week***: cantidad de horas trabajadas por semana según el individuo.
+***hours-per-week***: cantidad de horas trabajadas por semana.
 
 -   Entero mayor o igual a 0.
 
-***native-country***: país de nacimiento del individuo.
+***native-country***: país de nacimiento.
 
 -   United-States, Cambodia, England, Puerto-Rico, Canada, Germany, Outlying-US(Guam-USVI-etc), India, Japan, Greece, South, China, Cuba, Iran, Honduras, Philippines, Italy, Poland, Jamaica, Vietnam, Mexico, Portugal, Ireland, France, Dominican-Republic, Laos, Ecuador, Taiwan, Haiti, Columbia, Hungary, Guatemala, Nicaragua, Scotland, Thailand, Yugoslavia, El-Salvador, Trinidad&Tobago, Peru, Hong, Holand-Netherlands.
 
-***income***: indica si el individuo gana más o menos de \$50,000 dólares anuales
+***income***: indica si el individuo gana más o menos de \$50,000 dólares anuales.
 
 -   \<=50K, \>50K.
 
@@ -109,38 +114,38 @@ No sólo eso, sino que trabajar con diferentes tipos de variables en conjunto (c
 
 ## Preparación de datos
 
-Para comenzar este analisis, debemos ajustar la base de datos en torno a lo que buscamos encontrar, eliminando variables predictoras repetidas, o que generen por si mismas una predicción obvia sobre lo que buscamos predecir.
-Por esto decidimos eliminar dos columnas:
+Para comenzar con el análisis, debemos ajustar la base de datos en torno a lo que buscamos utilizar, eliminando variables predictoras repetidas, o que generen por sí mismas una predicción obvia sobre lo que buscamos predecir (en el caso de que la variable objetivo se pueda deducir de alguna predictora).
+Por esto, decidimos eliminar dos columnas:
 
-1.  ***education:*** el nivel educativo más alto alcanzado por el individuo, expresado en un string.
+1.  ***education:*** el nivel educativo más alto alcanzado por el individuo, expresado como un string.
 
-    -   Dado que tambien tenemos la variable ***education-num***, que expresa lo mismo pero con un int en vez de string, decidimos eliminar la columna entera para evitar duplicados.
+    -   Dado que tambien tenemos la variable ***education-num***, que expresa lo mismo pero de forma ordinal, decidimos eliminar la columna entera para evitar el dato duplicado. Aún así, utilizamos la información de ***education*** para mapear qué número se corresponde a qué nivel educativo, pero no formará parte del modelo.
 
 2.  ***relationship***: describe la relación de este individuo con otros en su hogar.
 
-    -   Esta variable es un poco redundante con ***marital-status**,* ya que por mas que sus entradas son distntas la informacion que aportan es muy parecida, pero mas importantemente
+    -   Esta variable tiene dos puntos clave: en primer lugar, es un poco redundante con ***marital-status***, al ser un poco más específica pero no lo suficiente; en segundo lugar, y más importantemente, contiene palabras que delatan el sexo de la persona, como "wife" o "husband", por lo que no nos sirve para entrenar al modelo (se basaría en gran parte en ello). 
 
 ```{r}
 library(readr)
 # Cargamos el conjunto de datos original, 
-# aplicando la transformación correspondiente para marcar los valores faltantes como Na's.
+# aplicando la transformación correspondiente para marcar los valores faltantes ("?") como Na's.
 datos = read_csv("adult.csv", na = "?", show_col_types = FALSE)
+
 # Eliminamos las columnas que no utilizaremos.
 datos <- subset(datos, select = -c(education, relationship))
 summary(datos)
 ```
 
-A partir del summary podemos empezar a comprender la distribucion de los datos, podemos ver por ejemplo como los encuestados tienen edades entre los 17 y 90 años, con una edad promedio de 37.
-Pero con este simple analisis no podemos ver informacion compleja de nuestras variables, como la relacion que tiene la edad de una persona con su salario.
-Para esto, a continuación vamos a graficar estas relaciones con el fin de entender con mayor profundidad la incidencia que tienen las variables predictoras sobre nuestra variable a predecir.
+A partir del summary podemos hacernos una idea inicial de la distribucion de los datos. Por ejemplo, se ve que los encuestados tienen edades que rondan entre los 17 y 90 años, con una edad promedio de 38. 
+Sin embargo, con este simple análisis no se puede estudiar en profundidad las relaciones más complejas entre variables, como puede ser el caso de la relacion que tiene la edad de una persona con su salario.
+Para ver esto, a continuación graficamos algunas de estas relaciones con el fin de entender con mayor nivel de detalle la incidencia que tienen las variables predictoras sobre nuestra variable a predecir y la relación intrínseca entre las mismas.
 
 ## Estadísticas descriptivas
 
-Antes de armar el modelo, es de interés analizar cómo se comportan las variables que vamos a estudiar, sus relaciones y pensar qué consecuencias podría tener esto.
 En primer lugar, queremos ver cómo se distribuyen las observaciones en función de `sex`, es decir, qué tan (des)balanceados están los datos.
 
 ```{r setup, include=FALSE}
-colores_sexo <- c("Female" = "#F4C2C2", "Male" = "#ADD8E6")
+colores_sexo <- c("Female" = "coral", "Male" = "lightgreen")
 ```
 
 ```{r}
@@ -152,11 +157,11 @@ sex_counts <- datos %>%
   count(sex) %>%
   mutate(porcentaje = n / sum(n) * 100)
 
-# Graficamos la proporción de cada categoría.
+# Graficamos la proporción calculada.
 ggplot(sex_counts, aes(x = "", y = porcentaje, fill = sex)) +
   geom_bar(width = 1, stat = "identity", color = "white") +
   coord_polar(theta = "y") +
-  labs(title = "Proporción de Cada Sexo", fill = "Sexo") +
+  labs(title = "Proporción de datos por sexo", fill = "Sexo") +
   scale_fill_manual(values = colores_sexo) +
   theme_void() +  
   theme(plot.title = element_text(hjust = 0.5, family = "times new roman", face = "bold", size = 18))+
@@ -164,16 +169,16 @@ ggplot(sex_counts, aes(x = "", y = porcentaje, fill = sex)) +
             position = position_stack(vjust = 0.5), color = "white", size = 5)
 ```
 
-Podemos observar que hay una mayor proporción de hombres, con una proporción aproximada de 67:33 frente a mujeres.
-Si bien parecería haber un desbalance, esto no necesariamente implica que el modelo no vaya a poder predecir correctamente.
+Podemos observar que hay una mayor proporción de hombres, con una distribución aproximada de 7 a 3 frente a mujeres.
+Si bien parecería existir un desbalance entre las categorías, esto no necesariamente implica que el modelo no vaya a poder predecir correctamente. Miremos ahora cómo algunas variables se relacionan con el sexo del individuo.
 
 ```{r}
 library(ggplot2)
 
-# Boxplot de la edad en función del sexo
+# Boxplot de la edad en función del sexo.
 ggplot(datos, aes(x = sex, y = age, fill = sex)) +
   geom_boxplot(alpha = 0.6) +
-  labs(title = "Distribución de la Edad por Sexo", x = "Sexo", y = "Edad") +
+  labs(title = "Distribución de la edad según el sexo", x = "Sexo", y = "Edad") +
   scale_fill_manual(values = colores_sexo) +  
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, family = "times new roman", face = "bold", size = 18))
@@ -184,9 +189,7 @@ mean(datos$age[datos$sex == "Male"])
 
 En el gráfico de arriba se puede ver una comparación de la distribución de edades en función del sexo.
 En base al mismo, podemos concluir que en la muestra las mujeres tienen un promedio de edad (alrededor de 37) algo menor que los hombres (alrededor de 39).
-La diferencia no debería ser lo suficientemente grande para que la variable tenga un gran poder predictivo.
-
-A continuación queremos estudiar la relación entre algunos pares de variables en detalle.
+La diferencia no debería ser lo suficientemente grande para esperar que la variable tenga un gran poder predictivo.
 
 ```{r}
 # Tabla de porcentajes.
@@ -197,7 +200,7 @@ library(ggplot2)
 # Gráfico de barras.
 ggplot(datos, aes(x = income, fill = sex)) +
   geom_bar(position = "fill", alpha = 0.8) +  
-  labs(title = "Distribución de Ingreso Según el Sexo", x = "Ingresos", y = "Proporción") +
+  labs(title = "Distribución del ingreso según el sexo", x = "Ingresos", y = "Proporción") +
   scale_fill_manual(values = colores_sexo) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, family = "times new roman", face = "bold", size = 18)) +
@@ -209,6 +212,7 @@ En ambos casos, la mayor parte parecería ganar menos que 50000 dólares.
 Prestar especial atención a la diferencia entre sexo: un mayor porcentaje de hombres gana más de 50000 dólares comparándolo con las mujeres.
 Es decir, es más probable que si una persona gana menos de 50000 dólares sea mujer que si gana más.
 
+
 ```{r}
 library(ggplot2)
 
@@ -216,7 +220,7 @@ library(ggplot2)
 ggplot(datos, aes(x = `education-num`, fill = income)) +
   geom_density(alpha = 0.7, position = 'identity', adjust = 3) + 
   labs(
-    title = "Densidad de la Educación por Nivel de Ingresos.",
+    title = "Distribución del nivel educativo según nivel de ingresos.",
     x = "Nivel de Educación (education-num)",
     y = "Densidad"
   ) +
@@ -229,15 +233,15 @@ Adicionalmente, nos interesa ver cómo se relaciona el nivel de ingresos con el 
 De acuerdo al gráfico, las distribuciones parecerían tener la misma tendencia, centrándose alrededor de los valores 10 (algún tipo de título de grado) y 11 (tecnicaturas).
 Si bien la tendencia y centralización son similares para ambos grupos, se nota un patrón en donde la gente de mayores ingreso tiende a tener un nivel de educación algo mayor a la población de menores ingresos.
 
+Pensar en esta relación entre variables permite ver un poco cómo se correlacionan. Como en este caso la conexión no parece ser tan fuente, y teniendo en cuenta el gráfico anterior de sexo y nivel de ingresos, no se puede estrictamente decir a partir de esto si el nivel educativo servirá demasiado para predecir.
+
 ```{r}
-# Cargar librerías necesarias
 library(ggplot2)
 
-# Crear un gráfico de barras agrupadas
 ggplot(datos, aes(x = occupation, fill = sex)) +
-  geom_bar(position = "dodge") +  # Usamos position="dodge" para barras agrupadas
+  geom_bar(position = "dodge") + 
   labs(
-    title = "Relación entre Ocupación y Sexo",
+    title = "Relación entre tipo de profesión y sexo",
     x = "Ocupación",
     y = "Número de personas",
     fill = "Sexo"
@@ -252,7 +256,7 @@ ggplot(datos, aes(x = occupation, fill = sex)) +
 Finalmente, resulta importante analizar la distribución de sexo de acuerdo a los distintos tipos de ocupaciones.
 En particular, vemos que las mujeres dominan en trabajos de oficina o recepción (*Adm-clerical*) o como empleadas domésticas (*Priv-house-serv*).
 Por otro lado, los hombres son predominantes particularmente en trabajos de reparación, pesca o granja, en trabajos pesados o de limpieza, en servicios de seguridad, como choferes o como operarios/inspectores de máquinas.
-Esto habla de la existencia de una brecha de género en el tipo de trabajo al que se puede acceder.
+Esto habla de la existencia de una brecha de género en el tipo de trabajo al que se puede acceder, para la época y país en concreto, al menos.
 
 ## Árbol básico
 
@@ -283,11 +287,11 @@ library(rpart)
 rpart.control()
 ```
 
-Acá arriba se pueden ver todos los hiperpárametros que utiliza rpart y sus valores por defecto.
-Entendamos un poco en donde interviene cada uno a partir de la documentación.
+Arriba se pueden ver todos los hiperpárametros que utiliza rpart y sus valores por defecto.
+Entendamos un poco en dónde interviene cada uno a partir de la documentación.
 
 -   **minsplit**: la cantidad mínima de observaciones que deben haber en un nodo para que se considere hacer una bifurcación desde allí.
-    En este caso, si no hay llegan a ser 20 las observaciones que caen en un nodo determinado, no se intentará dividir desde ese nodo.
+    En este caso, si no llegan a ser 20 las observaciones que caen en un nodo determinado, no se intentará dividir desde ese nodo.
 
 -   **minbucket**: la cantidad mínima de observaciones que deben haber en una hoja, es decir, un nodo terminal.
     Notar la relación entre minsplit y minbucket, en donde ambos parámetros refieren a una cantidad mínima de observaciones en los nodos.
@@ -299,17 +303,17 @@ Entendamos un poco en donde interviene cada uno a partir de la documentación.
     Es una forma de ahorrar el costo de computar todos los árboles posibles.
 
 -   **maxcompete**: el número de divisiones competidoras que se guardarán para comparar con el árbol obtenido.
-    Es decir, se guardan las siguientes `maxcomente` opciones de división que son a lo sumo tan efectivas como el árbol principal obtenido.
+    Es decir, se guardan las siguientes `maxcompete` opciones de división que son a lo sumo tan efectivas como el árbol principal obtenido.
     Por defecto vale 4.
 
--   **maxsurrogate**: el número de divisiones sustitutas que se utilizarán como máximo, usado cuando hay valores faltantes en alguna variable.
+-   **maxsurrogate**: el número de divisiones sustitutas que se utilizarán como máximo (usado cuando hay valores faltantes en alguna variable).
     Es decir, si un dato tiene una variable faltante, se pasará a la primer variable sustituta (que se comporte de forma similar).
     Por defecto vale 5, es decir, se tienen 5 variables sustitutas por nodo.
 
 -   **usesurrogate**: modo de uso de sustitutos a la hora de bifurcar el árbol.
     Si vale 0, no se evalúan las observaciones cuando el dato de la variable a mirar es faltante.
     Si vale 1, se miran en orden las variables sustituto para enviar las observaciones hacia el siguiente nodo.
-    Si vale 2, en el caso donde todas las variables sustituto también faltan, se envían los datos igualmente en el sentido que vaya la mayoría para poder clasificar todos.
+    Si vale 2, en el caso donde todas las variables sustituto también faltan, se envían los datos igualmente en el sentido que vaya la mayoría para poder clasificar todas las observaciones.
     Por defecto vale 2.
 
 -   **surrogatestyle**: criterio de calidad de variables sustituto.
@@ -320,12 +324,13 @@ Entendamos un poco en donde interviene cada uno a partir de la documentación.
     Por defecto vale 30, y va sumando niveles de a uno a partir del nodo inicial (raíz) que se corresponde al nivel 0.
 
 -   **xval**: cantidad de cross-validations.
-    Por defecto, se hacen 10 de estas validaciones cruzadas.
+    Por defecto, se hacen 10 validaciones cruzadas.
 
 ```{r}
 library(rpart)
 library(rpart.plot)
 
+# Entrenamos el modelo
 arbol <- rpart(formula = sex ~ ., data = entrenamiento, method = "class")
 rpart.plot(arbol,
   box.col = ifelse(arbol$frame$yval == 1, colores_sexo["Female"], colores_sexo["Male"])
@@ -344,6 +349,7 @@ unique(datos$`marital-status`)
 En un segundo paso, se evalúa la variable `occupation`, y, en este caso, si una persona trabaja de *Handlers-cleaners* (servicios de limpieza o trabajo pesado), *Craft-repair* (técnicos, plomeros, constructores), *Transport-moving* (choferes), *Farming-fishing* (granjeros o pescadores), *Protective-serv* (servicios de seguridad o protección, como policías, bomberos o guardias de seguridad), *Armed-Forces* (fuerzas armadas) o es desempleada, el árbol predicirá que es hombre.
 En este caso, se clasifica un 11% de los datos.
 
+
 ```{r}
 # Nos fijamos las categorías disponibles de ocupación.
 unique(datos$`occupation`)
@@ -355,17 +361,19 @@ En esta división se categoriza el 16% de los datos.
 Luego, se mira de nuevo `occupation`, y se clasifica como mujer a las personas cuya ocupación es *Adm-clerical* (recepcionistas u oficinistas) o *Priv-house-serv* (empleadas domésticas).
 En este paso se clasifica un 5% de los datos.
 
-El último corte se fija en la variable `hours-per-week`, y en base a un umbral de 39 horas de trabajo semanales se predice que una persona es mujer si trabaja menos del umbral, y hombre en caso contrario.
+El último corte se fija en la variable `hours-per-week`, y en base a un umbral de 39 horas de trabajo semanales se predice que una persona es mujer si trabaja menos del umbral de horas, y hombre en caso contrario.
 
 A modo de comentario, puede verse que las dimensiones de mayor impacto en este árbol son las del trabajo que realiza una persona y su estado civil.
 Se sugiere a partir del modelo que existen ciertas tendencias demográficas en donde algunas tareas eran más propensas a ser realizadas por hombres o mujeres en Estados Unidos en 1994.
 
 Resulta curioso notar que el primer corte se base en el estado civil más común del dataset, ya que se esperaría que no revele tanta información o sea considerado como corte principal.
-Esto nos hace pensar que podría deberse tanto al inbalance inicial del conjunto de datos como a causas como que no se tuvo en cuenta esa pureza a la hora de construir el dataset.
+Esto nos hace pensar que podría deberse tanto al desbalance inicial del conjunto de datos como a causas como que no se tuvo en cuenta la pureza de esta variable sexo a la hora de construir el dataset.
+
+Abajo vemos que un 89% de las personas con el estado civil en cuestión eran en efecto hombres en el dataset.
 
 ```{r}
-#  Vemos que una gran proporción de observaciones de hombres que están casados con un civil.
-sum(entrenamiento$`marital-status` == "Married-civ-spouse" & entrenamiento$sex == "Male") / sum(entrenamiento$`marital-status` == "Married-civ-spouse")
+# Vemos que una gran proporción de observaciones de hombres están casados con un civil.
+sum(datos$`marital-status` == "Married-civ-spouse" & datos$sex == "Male") / sum(datos$`marital-status` == "Married-civ-spouse")
 ```
 
 ### Predicciones
@@ -378,7 +386,6 @@ testeo$predicted_sex_class = clase_predicha
 # Probabilidades predichas
 probabilidades_predichas = predict(arbol, newdata = testeo, type = "prob")
 testeo$predicted_sex_prob = probabilidades_predichas
-
 ```
 
 ## Métricas de performance
@@ -389,22 +396,15 @@ En esta sección, evaluamos el árbol básico en función a determinadas métric
 
 ```{r}
 library(MLmetrics)
-#Generamos la Matriz
+#Generamos la matriz
 matriz_de_confusion <- ConfusionMatrix(y_true = testeo$sex,y_pred = testeo$predicted_sex_class)
 print("Matriz de Confusión")
 print(matriz_de_confusion)
-
-# Normalizamos la Matriz
-matriz_normalizada <- matriz_de_confusion / sum(matriz_de_confusion)
-cat("\n\n")
-print("Matriz de Confusión Normalizada")
-print(round(matriz_normalizada, 3)) 
-
 ```
 
 La matriz de confusión muestra la cantidad de predicciones en función a si la clase predicha se alineó o no con la clase real.
 Es decir, el modelo predijo para el conjunto de testeo que 1006 mujeres en efecto lo eran, mientras que para otras 644 las clasificó como hombres.
-La matriz da una idea poco detallada de cómo le fue al modelo al dar un vistazo a si la clasificación radica mayoritariamente en las celdas apropiadas (en este caso, True Positive y True Negative que serían Female-Female y Male-Male en nuestra matriz).
+La matriz da una idea poco detallada de cómo le fue al modelo al dar un vistazo simple a si la clasificación radica mayoritariamente en las celdas apropiadas, las cuales serían True Positive (en este caso, Female-Female) y True Negative (Male-Male en nuestra matriz).
 
 ### Accuracy
 
@@ -416,8 +416,8 @@ print(accuracy)
 
 La Accuracy se calcula a partir de valores de la matriz de confusión y proporciona una métrica concreta.
 Se calcula como (True Positive + True Negative) (cantidad de predicciones correctas totales) / (Positive + Negative) (total de predicciones).
-En nuestro caso, dio aproximadamente 0.778, lo que quiere decir que para el conjunto de testeo un 77.8% de las observaciones fueron clasificadas correctamente con el árbol.
-Esta métrica también podría usarse para estimar que la probabilidad que se clasifique correctamente con el modelo es de 0.778.
+En nuestro caso, dio aproximadamente 0.778, lo que quiere decir que para el conjunto de testeo un 77.8% de las observaciones fueron clasificadas correctamente con el árbol construido.
+Esta métrica también podría usarse para estimar la probabilidad de que se clasifique correctamente con el modelo.
 
 ### Precision
 
@@ -431,7 +431,7 @@ print(precision_m)
 
 La Precision consiste en la cantidad de predicciones que efectivamente corresponden a una clase sobre las predicciones totales que se clasificaron en esa clase (True Positive / (True Positive + False Positive)).
 Esta métrica puede calcularse para cada clase, dando una noción de cuántas personas predichas para cierto sexo en efecto eran del mismo.
-En este caso, hay una mayor cantidad de Falsos Positivos para el caso de las mujeres (observaciones predichas como mujeres cuando realmente eran hombres) que para los hombres.
+En este caso, hay una mayor cantidad de Falsos Positivos para el caso de las mujeres (observaciones predichas como mujeres cuando realmente eran hombres) que para los hombres, para los cuales se predice con mayor precisión. Podemos pensar que esto tiene que ver con que hay una mayor proporción de hombres en el conjunto de datos.
 
 ### Recall
 
@@ -445,8 +445,8 @@ print(recall_m)
 
 El Recall, por su parte, refiere a la proporción de predicciones para una clase en particular cuya clase predicha se correspondía con la real (True Positive/Positive).
 De esta forma, vemos para cada clase qué tan precisamente el modelo predice.
-Nuevamente, la precisión es mayor prediciendo para hombres (cuántos hombres fueron efectivamente clasificados) que mujeres.
-Creemos que esto es debido al desbalance que existe en la base de datos, con mas hombres que mujeres, logrando asi que se tenga mas informacion sobre los hombres para poder clasificarlos mas fidedignamente.
+Nuevamente, la precisión es mayor prediciendo para hombres (cuántos hombres fueron efectivamente clasificados como tal) que para mujeres.
+Creemos que esto es debido al desbalance que existe en la base de datos, con más hombres que mujeres, logrando así que se tenga mas información sobre los hombres para poder clasificarlos mas fidedignamente.
 
 ### F1-Score
 
@@ -462,13 +462,12 @@ El F1-score es una métrica que busca armonizar Precision y Recall.
 Se define como:
 
 $$
-F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
+F1 =  \frac{2 \cdot \text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
 $$
 
-Para ambas clases, vemos que está ubicado entre medio de la Precision y el Recall.
+Para ambas clases, vemos que está ubicado entre medio de los valores de la Precision y el Recall.
 En línea con el patrón visto previamente, el F1-score es mayor para la clase de hombres que de mujeres.
-Esto denuevo delata que nuestro modelo predice mejor hombres que mujeres.
-Pero pensando en el modelo, esto tambien puede deberse a la facilidad con la que se puede predecir el sexo masculino dados ciertos datos clave, como vimos anteriormente en la brecha ocupacional.
+Esto de nuevo parecería indicar que nuestro modelo predice mejor hombres que mujeres.
 
 ### AUC-ROC
 
@@ -485,19 +484,18 @@ plot(roc_curve, main = "Curva de ROC para predicción de sexo", col = "blue", lw
 ```
 
 El área bajo la curva ROC (Area Under Curve-Receiver Operating Characteristic) también sirve para medir la capacidad predictiva del modelo.
-Se busca que el modelo minimice el False Positive Rate (1 - Specificity), es decir, la proporción de FP sobre los negativos, y maximizar el True Positive Rate (= Recall).
-En este caso, dio un valor de aproximadamente 0.81, lo que indicaría que predice relativamente bien.
-Interpretando este resultado un poco mas en profundidad, podemos decir que una AUC de 0.81 implica que si tomamos una observación positiva y una negativa al azar, hay un 81% de probabilidad de que el modelo asigne mayor probabilidad a la positiva que a la negativa.
-A diferencia de las metricas anteriores como Accuracy, AUC ROC no se tan afectada por clases desbalanceadas y es por esto que la seguiremos usando como metrica de performance clave para el resto de los modelos.
+Se busca que el modelo minimice el False Positive Rate (1 - Specificity), es decir, la proporción de False Positives sobre los negativos, y maximizar el True Positive Rate (= Recall).
+En este caso, dio un valor de aproximadamente 0.81, lo que indicaría que el modelo estaría prediciendo relativamente bien (para el conjunto de testeo).
+Interpretando este resultado un poco más en profundidad, podemos decir que una AUC de 0.81 implica que si tomamos una observación positiva y una negativa al azar, hay un 81% de probabilidad de que el modelo asigne mayor probabilidad a la positiva que a la negativa.
+A diferencia de las métricas anteriores como Accuracy, AUC-ROC no se ve tan afectada por clases desbalanceadas, y es por esto que la seguiremos usando como metrica de performance clave para el resto de los modelos.
 
 ## Optimizando el modelo
 
-Ahora bien, nos gustaría mejorar la performance del modelo seleccionando los hiperparámetros que mejor resultados proporcionen.
-Utilizaremos la métrica de AUC-ROC como indicador de rendimiento.
+Ahora bien, nos gustaría mejorar la performance del modelo seleccionando los hiperparámetros que mejor resultados proporcionen. Utilizaremos la métrica de AUC-ROC como indicador de rendimiento para evaluar los modelos de ahora en adelante.
 
-Para evaluar la performance en función al valor de los hiperparámetros *minsplit*, *minbucket* y *maxdepth* definimos un rango de valores finito para cada variable y evaluamos la performance del album entrenado con cada combinación de hiperparámetros con el conjunto de validación para seleccionar el árbol que daba mejor resultado en la validación.
+Para evaluar la performance en función del valor de los hiperparámetros *minsplit*, *minbucket* y *maxdepth*, definimos un rango de valores finito para cada variable y computamos el AUC del árbol entrenado con cada combinación de hiperparámetros con el conjunto de validación para seleccionar el que de mejor resultado en la validación. 
 
-Primero, decidimos estudiar cómo varía la performance cuando solamente modificamos uno de estos hiperparámetros y dejamos el resto en los valores por defecto.
+Primero, decidimos estudiar cómo varía la performance cuando solamente modificamos uno de estos hiperparámetros y dejamos el resto en los valores por defecto. Para realizar todos estos experimentos, *cp* y *xval* se fijan en 0 para permitir que se llegue a evaluar la máxima profundidad de los árboles.
 
 ### Min Split
 
@@ -545,7 +543,7 @@ ggplot(df_resultados, aes(x = MinSplit, y = AUC)) +
 
 Para el caso de minsplit, corrimos el modelo con valores enteros entre 0 y 100.
 Vemos en el gráfico que la performance va mejorando a medida que los valores se vuelven más grandes, con picos leves alrededor de 40 y 100, indicando que para los valores por defecto, la performance mejora con valores altos.
-Sin embargo, parecería estar aplanándose, lo que podría interpretarse como cierto límite hasta el cual puede llegarse únicamente modificando este hiperparámetro.
+Sin embargo, parecería estar aplanándosea medida que el valor aumenta, lo que podría interpretarse como cierto límite hasta el cual puede llegarse únicamente modificando este hiperparámetro.
 
 ### Min Bucket
 
@@ -592,7 +590,7 @@ ggplot(df_resultados, aes(x = MinBucket, y = AUC)) +
   theme(plot.title = element_text(hjust = 0.5))  
 ```
 
-En este caso, como minbucket está relacionada estrictamente con el valor de minsplit podría pensarse que ambas deben variar para notar un cambio importante en la performance, pero se ve que el valor de este hiperparámetro por sí solo no estaría afectando la performance del modelo.
+En este caso, como minbucket está relacionada estrictamente con el valor de minsplit (ambas impactan en la consolidación de nodos), podría pensarse que ambas deben variar para notar un cambio importante en la performance, pero se ve que el valor de este hiperparámetro por sí solo no estaría afectando la performance del modelo, al menos con los valores por defecto del resto.
 
 ### Max Depth
 
@@ -640,12 +638,12 @@ ggplot(df_resultados, aes(x = MaxDepth, y = AUC)) +
 ```
 
 Por último, maxdepth presenta una distribución en la cual se alcanza un pico en el valor 12, mientras que después de este valor la precisión del modelo comienza a decrecer lentamente.
-Se puede asociar este comportamiento a un overfitting del modelo con los datos de entrenamiento, que empeora la performance en otros conjuntos de datos.
+Se puede asociar este comportamiento a un overfitting del modelo con los datos de entrenamiento, que empeora la performance en otros conjuntos de datos al permitir tanta ramificación específica.
 
 ### Parámetros en conjunto
 
-Ahora vamos a probar como afectan las distintas combinaciones de hiperparametros al resultado final, no cambiando cada uno individualmente, sino en conjunto.
-Para esto definimos un rango acotado para cada hiperparámetro para armar una grilla donde buscaremos el óptimo.
+A continuación, vamos a probar cómo afectan las distintas combinaciones de hiperparámetros al resultado final, no cambiando cada uno individualmente, sino en conjunto.
+Para esto definimos un rango acotado para cada hiperparámetro para armar una grilla donde buscaremos la combinación óptima que maximice el AUC-ROC.
 
 ```{r}
 performance_hiperparametros <- data.frame(MaxDepth = integer(), 
@@ -653,7 +651,7 @@ performance_hiperparametros <- data.frame(MaxDepth = integer(),
                              MinSplit = integer(),
                              AUC = numeric())
 
-# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+# Iterar sobre maxdepth, minbucket y minsplit
 for (maxdepth in c(5, 12, 18, 25)) {
   for (minbucket in c(3,6,9)) {
     for (minsplit in round(seq(5, 95, length.out = 10))) {
@@ -699,17 +697,21 @@ ggplot(performance_hiperparametros, aes(x = MinSplit, y = AUC, color = as.factor
     y = "AUC Score",
     color = "Max Depth"
   ) +
-  theme_classic()
+  theme_classic()+
+  ylim(min(performance_hiperparametros$AUC), max(performance_hiperparametros$AUC))+
+  scale_x_continuous(breaks = c(5, 25, 50, 75, 95))
 ```
 
-Cada gráfico corresponde a un valor distinto de minbucket.
+Cada gráfico corresponde a un valor distinto de minbucket (3, 6 y 9).
 A su vez, cada valor de maxdepth se visualiza con un color distinto por gráfico.
-En el eje horizontal puede observarse cómo varían los valores minsplit y el eje vertical corresponde a la performance.
+En el eje horizontal puede observarse cómo varían los valores de minsplit y el eje vertical corresponde a la performance.
 
 En primer lugar, notamos que el valor de maxdepth que siempre tuvo el mejor rendimiento fue 12, por lo que nos concentraremos en evaluar exclusivamente las líneas verdes.
 La relación definitivamente más interesante para estudiar es la de minsplit y minbucket.
-Se puede ver que la variabilidad de la performance es mayor para valores mayores de minbucket, mientras que para valores pequeños la curva es más claramente creciente con respecto a minsplit.
-En todos los casos de minbucket, sin embargo, vemos que la mejor performance se concentra en valores muy altos de minsplit.
+Se puede ver que la variabilidad de la performance es mayor para valores mayores de minbucket (no se sigue un patrón tan claro), mientras que para valores pequeños la curva es más claramente creciente con respecto a minsplit.
+En todos los casos de minbucket, sin embargo, vemos que la mejor performance se concentra en valores muy altos de minsplit, aunque en casos como MinBucket=6 o 9 es más difícil de distinguir con valores pequeños.
+
+Para valores más grandes de maxdepth, se ve que usar mayores valores de minbucket mejora el rendimiento. Esto tiene sentido al pensar en que tener más profundidad podría generar muchas hojas muy específicas, pero controlar estas hojas con minbucket más altos podría evitar sobreajustes.
 
 ```{r}
 library(plotly)
@@ -725,8 +727,8 @@ plot_ly(performance_hiperparametros,
   layout(title = "AUC vs Max Depth, Min Split y Min Bucket")
 ```
 
-El gráfico tridimensional presentado arriba proporciona una visualización un poco más clara de la relación entre las tres variables, además de ser interactivo para poder a su vez comparar lo que sucede con los valores exactos de performance, o analizar la relación entre dos hiperparámetros.
-Se observa un punto violeta que claramente indica una dirección de empeoramiento de rendimiento, mientras que los puntos más amarillos se concentran en valores donde MaxDepth=12 y MinSplit es alto, variando levemente entre valores de MinBucket.
+El gráfico tridimensional presentado arriba proporciona una visualización un poco más clara de la relación entre las tres variables, además de ser interactivo para poder a su vez comparar lo que sucede con los valores exactos de performance, o analizar la relación entre dos hiperparámetros (al rotar se pueden comparar dos dimensiones específicas).
+Se observa un punto violeta que claramente indica una dirección de empeoramiento del rendimiento (valores bajos de minbucket y minsplit + valor alto de maxdepth), mientras que los puntos más amarillos se concentran en valores donde MaxDepth=12 y MinSplit es alto, variando levemente entre valores de MinBucket.
 
 Ahora bien, encontremos los valores con mejor performance y construyamos un nuevo árbol para evaluarlo con el conjunto de testeo.
 
@@ -780,7 +782,7 @@ print(paste("AUC-ROC ORIGINAL: ", auc_original))
 print(paste("AUC-ROC OPTIMIZADO: ", auc_opt))
 ```
 
-Se tiene entonces que el modelo mejoró en un 3% su rendimiento, y como puede verse en el gráfico efectivamente cubre más área bajo la curva, aunque no se está acercando necesariamente más al extremo deseado (el que maximiza True Positive Rate y minimiza el False Positive Rate).
+Se tiene entonces que el modelo mejoró en un 3-4% su rendimiento, y, como puede verse en el gráfico, efectivamente se cubre más área bajo la curva, aunque no se está acercando necesariamente más al extremo deseado en ambas direcciones (el que maximiza True Positive Rate y minimiza el False Positive Rate).
 
 ## Árbol optimizado: estructura
 
@@ -791,10 +793,12 @@ library(rpart)
 library(rpart.plot)
 
 par(mfrow = c(1, 1), mar = c(1, 1, 1, 1))  
-rpart.plot(modelo_optimizado, cex = 0.3) 
+rpart.plot(modelo_optimizado, cex = 0.3,
+  box.col = ifelse(arbol$frame$yval == 1, colores_sexo["Female"], colores_sexo["Male"])
+  )
 ```
 
-A comparación del modelo original, este árbol contiene una cantidad mucho mayor de divisiones (es mucho más profundo al tener complejidad 0, vemos que tiene el máximo de 12 niveles de profundidad).
+A comparación del modelo original, este árbol contiene una cantidad mucho mayor de divisiones (es mucho más profundo al tener complejidad 0, por lo que vemos que tiene el máximo de 12 niveles de profundidad).
 Las primeras particiones son idénticas.
 Es decir, el árbol original parecería ser un subárbol del optimizado.
 La diferencia en este caso corresponde con que de todos los nodos que previamente eran hojas, ahora se hacen más particiones.
@@ -805,7 +809,7 @@ Esta categorización tan detallada y profunda podría significar que por detrás
 ## Datos faltantes
 
 A continuación, nos gustaría entender cómo se comportaría el modelo si se tuviera una cantidad fija de datos faltantes por variable predictora.
-De otra manera, la pregunta que nos planteamos en esta seccion es ¿cuantos datos son realmente necesarios para una prediccion fidedigna?.
+De otra manera, la pregunta que nos planteamos en esta sección es ¿cuántos datos son realmente necesarios para obtener una predicción fidedigna?
 
 ```{r}
 generar_datos_faltantes <- function(df, columnas, porcentaje) {
@@ -847,7 +851,7 @@ performance_hiperparametros_20 <- data.frame(MaxDepth = integer(),
                              MinSplit = integer(),
                              AUC = numeric())
 
-# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+# Iterar sobre maxdepth, minbucket y minsplit
 for (maxdepth in c(5, 12, 18, 25)) {
   for (minbucket in c(3,6,9)) {
     for (minsplit in round(seq(5, 95, length.out = 10))) {
@@ -885,9 +889,9 @@ mejores_hiperparametros_20 <- performance_hiperparametros_20[mejor_indice_20, ]
 print(mejores_hiperparametros_20)
 ```
 
-Los mejores hiperparámetros encontrados cuando se tiene un 20% de datos faltantes son MaxDepth=12, MinBucket=3 y MinSplit=95, dando una performance de 0.8193396 en el conjunto de validación.
+Los mejores hiperparámetros encontrados cuando se tiene un 20% de datos faltantes son MaxDepth=12, MinBucket=9 y MinSplit=95.
 Vemos que la performance se vio reducida en comparación con la optimización previa, pero es muy parecida a la performance del modelo básico sin optimización.
-Los hiperparámetros seleccionados son muy similares, a diferencia de MinSplit que se incrementó.
+Los hiperparámetros seleccionados también cambiaron, especialmente MinBucket que pasó de 3 a 9.
 
 ```{r}
 library(MLmetrics)
@@ -922,7 +926,7 @@ performance_hiperparametros_50 <- data.frame(MaxDepth = integer(),
                              MinSplit = integer(),
                              AUC = numeric())
 
-# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+# Iterar sobre maxdepth, minbucket y minsplit
 for (maxdepth in c(5, 12, 18, 25)) {
   for (minbucket in c(3,6,9)) {
     for (minsplit in round(seq(5, 95, length.out = 10))) {
@@ -960,9 +964,9 @@ mejores_hiperparametros_50 <- performance_hiperparametros_50[mejor_indice_50, ]
 print(mejores_hiperparametros_50)
 ```
 
-Los mejores hiperparámetros encontrados cuando se tiene un 50% de datos faltantes son MaxDepth=12, MinBucket=6 y MinSplit=55, dando una performance de 0.7679386 en el conjunto de validación.
+Los mejores hiperparámetros encontrados cuando se tiene un 50% de datos faltantes son MaxDepth=12, MinBucket=6 y MinSplit=65.
 Vemos que la performance se vio reducida en comparación con la optimización previa y al caso de 20% de datos faltantes.
-En este caso, MinSplit se vio reducido bastante y MinBucket incrementó.
+En este caso, nuevamente cambiaron MinBucket y MinSplit.
 
 ```{r}
 library(MLmetrics)
@@ -998,7 +1002,7 @@ performance_hiperparametros_75 <- data.frame(MaxDepth = integer(),
                              MinSplit = integer(),
                              AUC = numeric())
 
-# Iterar sobre maxdepth de 0 a 30, minbucket de 0 a 10 y minsplit de 0 a 100
+# Iterar sobre maxdepth, minbucket y minsplit
 for (maxdepth in c(5, 12, 18, 25)) {
   for (minbucket in c(3,6,9)) {
     for (minsplit in round(seq(5, 95, length.out = 10))) {
@@ -1036,7 +1040,7 @@ mejores_hiperparametros_75 <- performance_hiperparametros_75[mejor_indice_75, ]
 print(mejores_hiperparametros_75)
 ```
 
-Los mejores hiperparámetros encontrados cuando se tiene un 75% de datos faltantes son MaxDepth=12, MinBucket=6 y MinSplit=75, dando una performance de 0.6913877 en el conjunto de validación.
+Los mejores hiperparámetros encontrados cuando se tiene un 75% de datos faltantes son MaxDepth=18, MinBucket=9 y MinSplit=95.
 Vemos que la performance se vio reducida en comparación con la optimización previa y al caso de 20% y 50% de datos faltantes.
 
 ```{r}
@@ -1070,7 +1074,7 @@ print(paste("AUC-ROC OPTIMIZADO CON 75% NAs: ", auc_opt_75))
 
 En un primer vistazo, se tiene que a medida que la proporción de datos faltantes aumenta, hay un claro decrecimiento de la performance del modelo.
 Esto tiene sentido considerando que se está trabajando con menos información.
-Pero si observamos el caso donde eliminamos el 20% de los datos, podmeos ver que su performance es relativamente buena, indicando que un mayor numero de datos da cada vez mas un redimiento decreciente.
+Pero si observamos el caso donde eliminamos el 20% de los datos, podemos ver que su performance es relativamente buena, por lo que se puede identificar la robustez de los árboles al trabajar con datos faltantes.
 
 ```{r}
 # Graficamos las curva ROC side-to-side
@@ -1093,8 +1097,8 @@ legend("bottomright", legend = c("Árbol optimizado", "20% NAs", "50% NAs", "75%
 
 A comparación con la performance observada del árbol optimizado, en el caso de la falta de datos se va viendo cómo se reduce el rendimiento a medida que aumentan los valores faltantes.
 
-Ahora bien, una pregunta totalmente válida puede ser: dado un modelo entrenado con datos faltantes, ¿qué tan bien predicen sobre un conjunto de testeo que no tiene tantos datos incompletos?
-Para entender esto, pusimos a prueba los modelos construidos con datos faltantes fijos frente al conjunto de testeo original, sin datos faltantes creados artificialmente.
+Ahora bien, una pregunta totalmente válida puede ser: dado un modelo entrenado con datos faltantes, ¿qué tan bien predice sobre un conjunto de testeo que no tiene tantos datos incompletos? Es decir, si utilizamos los datos originales (reales) para evaluar al modelo, ¿qué tan bien predice sobre los mismos?
+Para entender esto, pusimos a prueba los modelos construidos con datos faltantes fijos frente al conjunto de testeo original, sin datos faltantes creados artificialmente en este último.
 
 ```{r}
 vector_sex_testeo <- ifelse(testeo$sex == "Male", 0, 1)
@@ -1152,24 +1156,26 @@ print(paste("AUC-ROC 75% ALT: ", auc_opt_75_alt))
 Observando los valores obtenidos, la diferencia entre las métricas de AUC no resulta tan significativa.
 De hecho, en el caso del modelo entrenado con un 20% de datos faltantes, el valor de AUC es incluso ligeramente superior al del modelo optimizado con datos completos, lo cual puede parecer contraintuitivo.
 
-Sobre estos resultados podemos plantear varias hipotesis.
-Podría ser posble queue la introducción de valores faltantes pueda actuar como una forma de regularización, forzando al modelo a no sobreajustarse a patrones del conjunto de entrenamiento original, funcionando casi como una Navaja de Ockham.
-Y por otro lado, dado que los datos faltantes fueron generados aleatoriamente, es posible que el modelo haya logrado aprender patrones suficientemente generales, sin verse demasiado afectado.
+Sobre estos resultados podemos plantear varias hipótesis.
+Podría ser posible que la introducción de valores faltantes pueda actuar como una forma de regularización, forzando al modelo a no sobreajustarse a patrones del conjunto de entrenamiento original, funcionando casi como una Navaja de Ockham.
+Y, por otro lado, dado que los datos faltantes fueron generados aleatoriamente, es posible que el modelo haya logrado aprender patrones suficientemente generales, sin verse demasiado afectado.
 
-Sin embargo, a medida que el porcentaje de datos faltantes aumenta (50% y 75%), se empieza a notar una ligera degradación en la AUC, aunque no tan abrupta como podría esperarse.
+Sin embargo, a medida que el porcentaje de datos faltantes aumenta (50% y 75%), se empieza a notar una ligera degradación en el rendimiento, aunque no tan abrupta como podría llegar a esperarse.
 Esto sugiere que, al menos en este caso, el modelo mantiene una capacidad predictiva relativamente estable incluso cuando se entrena con información incompleta.
 
 ## Conclusiones
 
 A lo largo de este trabajo, exploramos un enfoque alternativo al uso tradicional del dataset *Adult* del censo de EE.UU.
-de 1994, invirtiendo la lógica habitual: en lugar de predecir el nivel de ingresos, buscamos predecir el sexo de una persona en base a sus características demográficas.
+de 1994, cambiando el enfoque habitual con el que se utiliza el conjunto de datos: en lugar de predecir el nivel de ingresos, buscamos predecir el sexo de una persona en base a sus características demográficas.
 
 Este cambio de perspectiva nos permitió analizar con mayor profundidad cómo las variables laborales, educativas y sociales estaban correlacionadas con el género, revelando patrones estructurales marcados por el contexto histórico de la época.
 El uso de árboles de decisión nos permitió visualizar de forma clara estas relaciones, identificando variables como el estado civil y la ocupación como fuertes predictores del sexo.
 
-Vimos como los distintos hiperparametros afectan al modelo, ayudando o detrayendo de una solución optima.
-No solo viendo como cada uno actua sobre la prediccion de manera aislada, sino tambien como en conjunto se complementan y logran niveles mas altos de fieldad en el modelo.
+Vimos como los distintos hiperparámetros afectan al modelo, ayudando o detrayendo de una solución óptima.
+No sólo viendo cómo cada uno actúa sobre la predicción de manera aislada, sino tambiéen cómo en conjunto se complementan y logran niveles más altos de calidad del modelo.
 
-Además, observamos cómo la presencia de datos faltantes impacta la performance del modelo, pero también notamos que, en niveles bajos, esta pérdida de información no necesariamente degrada los resultados, e incluso puede actuar como una forma de regularización.
+Además, observamos cómo la presencia de datos faltantes impacta sobre la performance del modelo, pero también notamos que, en niveles bajos, esta pérdida de información no necesariamente degrada los resultados, e incluso puede actuar como una forma de regularización. Así, trabajar con cierto nivel de datos faltantes usando árboles de decisión podría no necesariamente ser un problema que limite la capacidad predictiva.
+
+En relación con el potencial del modelo, vemos que se compone mayoritariamente por patrones sociales que poseen sesgos culturales y de épocas, por lo que el presente modelo no tendría una utilidad en sistemas genéricos, como podrían ser el uso para segmentación de mercado, médico o para verificación de identidad, tanto por cuestiones prácticas como éticas. Aún así, probablemente resulte aplicable en el contexto de investigación científica en el área de las ciencias sociales, al poder construir modelos predictivos de caliad razonable basados en patrones del contexto social del momento.
 
 En definitiva, este análisis pone de manifiesto tanto la capacidad de los modelos de aprendizaje para captar estructuras sociales latentes como la importancia de una correcta preparación de los datos y selección de hiperparámetros para lograr modelos interpretables y robustos.
