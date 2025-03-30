@@ -358,7 +358,7 @@ En este paso se clasifica un 5% de los datos.
 El último corte se fija en la variable `hours-per-week`, y en base a un umbral de 39 horas de trabajo semanales se predice que una persona es mujer si trabaja menos del umbral, y hombre en caso contrario.
 
 A modo de comentario, puede verse que las dimensiones de mayor impacto en este árbol son las del trabajo que realiza una persona y su estado civil.
-Se sugiere a partir del modelo que existen ciertas tendencias demográficas en donde algunas tareas son más propensas a ser realizadas por hombres o mujeres en Estados Unidos en 1994.
+Se sugiere a partir del modelo que existen ciertas tendencias demográficas en donde algunas tareas eran más propensas a ser realizadas por hombres o mujeres en Estados Unidos en 1994.
 
 Resulta curioso notar que el primer corte se base en el estado civil más común del dataset, ya que se esperaría que no revele tanta información o sea considerado como corte principal.
 Esto nos hace pensar que podría deberse tanto al inbalance inicial del conjunto de datos como a causas como que no se tuvo en cuenta esa pureza a la hora de construir el dataset.
@@ -368,7 +368,7 @@ Esto nos hace pensar que podría deberse tanto al inbalance inicial del conjunto
 sum(entrenamiento$`marital-status` == "Married-civ-spouse" & entrenamiento$sex == "Male") / sum(entrenamiento$`marital-status` == "Married-civ-spouse")
 ```
 
-## Predicciones
+### Predicciones
 
 ```{r}
 # Clase predicha
@@ -381,23 +381,32 @@ testeo$predicted_sex_prob = probabilidades_predichas
 
 ```
 
-# Métricas de performance
+## Métricas de performance
 
 En esta sección, evaluamos el árbol básico en función a determinadas métricas de rendimiento presentadas a continuación.
 
-## Matriz de confusión
+### Matriz de confusión
 
 ```{r}
 library(MLmetrics)
+#Generamos la Matriz
 matriz_de_confusion <- ConfusionMatrix(y_true = testeo$sex,y_pred = testeo$predicted_sex_class)
+print("Matriz de Confusión")
 print(matriz_de_confusion)
+
+# Normalizamos la Matriz
+matriz_normalizada <- matriz_de_confusion / sum(matriz_de_confusion)
+cat("\n\n")
+print("Matriz de Confusión Normalizada")
+print(round(matriz_normalizada, 3)) 
+
 ```
 
 La matriz de confusión muestra la cantidad de predicciones en función a si la clase predicha se alineó o no con la clase real.
 Es decir, el modelo predijo para el conjunto de testeo que 1006 mujeres en efecto lo eran, mientras que para otras 644 las clasificó como hombres.
 La matriz da una idea poco detallada de cómo le fue al modelo al dar un vistazo a si la clasificación radica mayoritariamente en las celdas apropiadas (en este caso, True Positive y True Negative que serían Female-Female y Male-Male en nuestra matriz).
 
-## Accuracy
+### Accuracy
 
 ```{r}
 library(MLmetrics)
@@ -410,7 +419,7 @@ Se calcula como (True Positive + True Negative) (cantidad de predicciones correc
 En nuestro caso, dio aproximadamente 0.778, lo que quiere decir que para el conjunto de testeo un 77.8% de las observaciones fueron clasificadas correctamente con el árbol.
 Esta métrica también podría usarse para estimar que la probabilidad que se clasifique correctamente con el modelo es de 0.778.
 
-## Precision
+### Precision
 
 ```{r}
 library(MLmetrics)
@@ -424,7 +433,7 @@ La Precision consiste en la cantidad de predicciones que efectivamente correspon
 Esta métrica puede calcularse para cada clase, dando una noción de cuántas personas predichas para cierto sexo en efecto eran del mismo.
 En este caso, hay una mayor cantidad de Falsos Positivos para el caso de las mujeres (observaciones predichas como mujeres cuando realmente eran hombres) que para los hombres.
 
-## Recall
+### Recall
 
 ```{r}
 library(MLmetrics)
@@ -437,8 +446,9 @@ print(recall_m)
 El Recall, por su parte, refiere a la proporción de predicciones para una clase en particular cuya clase predicha se correspondía con la real (True Positive/Positive).
 De esta forma, vemos para cada clase qué tan precisamente el modelo predice.
 Nuevamente, la precisión es mayor prediciendo para hombres (cuántos hombres fueron efectivamente clasificados) que mujeres.
+Creemos que esto es debido al desbalance que existe en la base de datos, con mas hombres que mujeres, logrando asi que se tenga mas informacion sobre los hombres para poder clasificarlos mas fidedignamente.
 
-## F1-Score
+### F1-Score
 
 ```{r}
 library(MLmetrics)
@@ -449,10 +459,18 @@ print(f1_score_m)
 ```
 
 El F1-score es una métrica que busca armonizar Precision y Recall.
+Se define como:
+
+$$
+F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
+$$
+
 Para ambas clases, vemos que está ubicado entre medio de la Precision y el Recall.
 En línea con el patrón visto previamente, el F1-score es mayor para la clase de hombres que de mujeres.
+Esto denuevo delata que nuestro modelo predice mejor hombres que mujeres.
+Pero pensando en el modelo, esto tambien puede deberse a la facilidad con la que se puede predecir el sexo masculino dados ciertos datos clave, como vimos anteriormente en la brecha ocupacional.
 
-## AUC-ROC
+### AUC-ROC
 
 ```{r}
 library(MLmetrics)
@@ -466,9 +484,11 @@ roc_curve <- roc(vector_sex, testeo$predicted_sex_prob[, "Female"])
 plot(roc_curve, main = "Curva de ROC para predicción de sexo", col = "blue", lwd = 2) 
 ```
 
-El área bajo la curva ROC (AUC-ROC) también sirve para medir la capacidad predictiva del modelo.
+El área bajo la curva ROC (Area Under Curve-Receiver Operating Characteristic) también sirve para medir la capacidad predictiva del modelo.
 Se busca que el modelo minimice el False Positive Rate (1 - Specificity), es decir, la proporción de FP sobre los negativos, y maximizar el True Positive Rate (= Recall).
 En este caso, dio un valor de aproximadamente 0.81, lo que indicaría que predice relativamente bien.
+Interpretando este resultado un poco mas en profundidad, podemos decir que una AUC de 0.81 implica que si tomamos una observación positiva y una negativa al azar, hay un 81% de probabilidad de que el modelo asigne mayor probabilidad a la positiva que a la negativa.
+A diferencia de las metricas anteriores como Accuracy, AUC ROC no se tan afectada por clases desbalanceadas y es por esto que la seguiremos usando como metrica de performance clave para el resto de los modelos.
 
 ## Optimizando el modelo
 
@@ -476,7 +496,6 @@ Ahora bien, nos gustaría mejorar la performance del modelo seleccionando los hi
 Utilizaremos la métrica de AUC-ROC como indicador de rendimiento.
 
 Para evaluar la performance en función al valor de los hiperparámetros *minsplit*, *minbucket* y *maxdepth* definimos un rango de valores finito para cada variable y evaluamos la performance del album entrenado con cada combinación de hiperparámetros con el conjunto de validación para seleccionar el árbol que daba mejor resultado en la validación.
-RANGO DE VALORES
 
 Primero, decidimos estudiar cómo varía la performance cuando solamente modificamos uno de estos hiperparámetros y dejamos el resto en los valores por defecto.
 
@@ -486,7 +505,7 @@ Primero, decidimos estudiar cómo varía la performance cuando solamente modific
 resultados_minsplit <- list()
 
 for (minsplit in 0:100) {
-  # Pra cada valor de minsplit, construimos un modelo y lo evaluamos en validación.
+  # Para cada valor de minsplit, construimos un modelo y lo evaluamos en validación.
   modelo_temporal = rpart(
     formula = sex ~ ., 
     data = entrenamiento, 
@@ -524,8 +543,9 @@ ggplot(df_resultados, aes(x = MinSplit, y = AUC)) +
   theme(plot.title = element_text(hjust = 0.5))  
 ```
 
-Para el caso de minsplit, vemos en el gráfico que la performance va mejorando a medida que los valores se vuelven más grandes, con picos leves alrededor de 40 y 100, indicando que para los valores por defecto, la performance mejora con valores altos.
-Sin embargo, parecería estar aplanándose, lo que podría interpretarse como cierto límite hasta el cual puede llegarse solamente modificando este hiperparámetro.
+Para el caso de minsplit, corrimos el modelo con valores enteros entre 0 y 100.
+Vemos en el gráfico que la performance va mejorando a medida que los valores se vuelven más grandes, con picos leves alrededor de 40 y 100, indicando que para los valores por defecto, la performance mejora con valores altos.
+Sin embargo, parecería estar aplanándose, lo que podría interpretarse como cierto límite hasta el cual puede llegarse únicamente modificando este hiperparámetro.
 
 ### Min Bucket
 
@@ -624,7 +644,8 @@ Se puede asociar este comportamiento a un overfitting del modelo con los datos d
 
 ### Parámetros en conjunto
 
-Definimos un rango acotado para cada hiperparámetro para armar una grilla donde buscaremos el óptimo.
+Ahora vamos a probar como afectan las distintas combinaciones de hiperparametros al resultado final, no cambiando cada uno individualmente, sino en conjunto.
+Para esto definimos un rango acotado para cada hiperparámetro para armar una grilla donde buscaremos el óptimo.
 
 ```{r}
 performance_hiperparametros <- data.frame(MaxDepth = integer(), 
@@ -716,7 +737,7 @@ print(mejores_hiperparametros)
 ```
 
 Los mejores hiperparámetros encontrados son MaxDepth=12, MinBucket=3 y MinSplit=85, dando una performance de 0.8530492 en el conjunto de validación.
-Corroboremos con el de testeo.
+Corroboremos con el set de testeo.
 
 ```{r}
 library(MLmetrics)
@@ -778,12 +799,13 @@ Las primeras particiones son idénticas.
 Es decir, el árbol original parecería ser un subárbol del optimizado.
 La diferencia en este caso corresponde con que de todos los nodos que previamente eran hojas, ahora se hacen más particiones.
 Entendiendo esto, nuevamente las variables más relevantes para clasificar son *marital-status* y *occupation*.
-A medidad que se avanza en los niveles, se utilizan nuevas variables con categorías mucho más especificas como *native-country* (país de origen).
-Esta categorización tan detallada y profunda podría significar que por detrás está ocurriendo un sobreajuste, y la mejora en preformance de test no necesariamente valga la pena.
+A medida que se avanza en los niveles, se utilizan nuevas variables con categorías mucho más especificas como *native-country* (país de origen).
+Esta categorización tan detallada y profunda podría significar que por detrás está ocurriendo un sobreajuste, y la mejora en performance de test no necesariamente valga la pena.
 
 ## Datos faltantes
 
 A continuación, nos gustaría entender cómo se comportaría el modelo si se tuviera una cantidad fija de datos faltantes por variable predictora.
+De otra manera, la pregunta que nos planteamos en esta seccion es ¿cuantos datos son realmente necesarios para una prediccion fidedigna?.
 
 ```{r}
 generar_datos_faltantes <- function(df, columnas, porcentaje) {
@@ -817,7 +839,7 @@ validacion_75_na <- generar_datos_faltantes(df=validacion, columnas=columnas_pre
 
 ### 20% NA
 
-Repitamos el procedimiento de maximizar hiperparámetros.
+Una vez seteados los datos faltantes, repetimos el procedimiento de maximizar hiperparámetros.
 
 ```{r}
 performance_hiperparametros_20 <- data.frame(MaxDepth = integer(), 
@@ -864,7 +886,7 @@ print(mejores_hiperparametros_20)
 ```
 
 Los mejores hiperparámetros encontrados cuando se tiene un 20% de datos faltantes son MaxDepth=12, MinBucket=3 y MinSplit=95, dando una performance de 0.8193396 en el conjunto de validación.
-Vemos que la performance se vio reducida en comparación con la optimización previa.
+Vemos que la performance se vio reducida en comparación con la optimización previa, pero es muy parecida a la performance del modelo básico sin optimización.
 Los hiperparámetros seleccionados son muy similares, a diferencia de MinSplit que se incrementó.
 
 ```{r}
@@ -968,7 +990,7 @@ auc_opt_50 <- AUC(y_pred = predicciones_50, y_true = vector_sex_testeo_50)
 
 ### 75% NA
 
-Repitamos el procedimiento de maximizar hiperparámetros.
+Repetimos el procedimiento una vez más.
 
 ```{r}
 performance_hiperparametros_75 <- data.frame(MaxDepth = integer(), 
@@ -1048,6 +1070,7 @@ print(paste("AUC-ROC OPTIMIZADO CON 75% NAs: ", auc_opt_75))
 
 En un primer vistazo, se tiene que a medida que la proporción de datos faltantes aumenta, hay un claro decrecimiento de la performance del modelo.
 Esto tiene sentido considerando que se está trabajando con menos información.
+Pero si observamos el caso donde eliminamos el 20% de los datos, podmeos ver que su performance es relativamente buena, indicando que un mayor numero de datos da cada vez mas un redimiento decreciente.
 
 ```{r}
 # Graficamos las curva ROC side-to-side
@@ -1126,6 +1149,27 @@ print(paste("AUC-ROC 50% ALT: ", auc_opt_50_alt))
 print(paste("AUC-ROC 75% ALT: ", auc_opt_75_alt))
 ```
 
-Observando los valores obtenidos, la diferencia de métricas no es tan alta, e incluso parecería ser que se mejoró la predicción en el caso de 20% de datos faltantes.
+Observando los valores obtenidos, la diferencia entre las métricas de AUC no resulta tan significativa.
+De hecho, en el caso del modelo entrenado con un 20% de datos faltantes, el valor de AUC es incluso ligeramente superior al del modelo optimizado con datos completos, lo cual puede parecer contraintuitivo.
+
+Sobre estos resultados podemos plantear varias hipotesis.
+Podría ser posble queue la introducción de valores faltantes pueda actuar como una forma de regularización, forzando al modelo a no sobreajustarse a patrones del conjunto de entrenamiento original, funcionando casi como una Navaja de Ockham.
+Y por otro lado, dado que los datos faltantes fueron generados aleatoriamente, es posible que el modelo haya logrado aprender patrones suficientemente generales, sin verse demasiado afectado.
+
+Sin embargo, a medida que el porcentaje de datos faltantes aumenta (50% y 75%), se empieza a notar una ligera degradación en la AUC, aunque no tan abrupta como podría esperarse.
+Esto sugiere que, al menos en este caso, el modelo mantiene una capacidad predictiva relativamente estable incluso cuando se entrena con información incompleta.
 
 ## Conclusiones
+
+A lo largo de este trabajo, exploramos un enfoque alternativo al uso tradicional del dataset *Adult* del censo de EE.UU.
+de 1994, invirtiendo la lógica habitual: en lugar de predecir el nivel de ingresos, buscamos predecir el sexo de una persona en base a sus características demográficas.
+
+Este cambio de perspectiva nos permitió analizar con mayor profundidad cómo las variables laborales, educativas y sociales estaban correlacionadas con el género, revelando patrones estructurales marcados por el contexto histórico de la época.
+El uso de árboles de decisión nos permitió visualizar de forma clara estas relaciones, identificando variables como el estado civil y la ocupación como fuertes predictores del sexo.
+
+Vimos como los distintos hiperparametros afectan al modelo, ayudando o detrayendo de una solución optima.
+No solo viendo como cada uno actua sobre la prediccion de manera aislada, sino tambien como en conjunto se complementan y logran niveles mas altos de fieldad en el modelo.
+
+Además, observamos cómo la presencia de datos faltantes impacta la performance del modelo, pero también notamos que, en niveles bajos, esta pérdida de información no necesariamente degrada los resultados, e incluso puede actuar como una forma de regularización.
+
+En definitiva, este análisis pone de manifiesto tanto la capacidad de los modelos de aprendizaje para captar estructuras sociales latentes como la importancia de una correcta preparación de los datos y selección de hiperparámetros para lograr modelos interpretables y robustos.
