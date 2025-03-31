@@ -687,7 +687,6 @@ best_hiper_75 = result_75_NA$Best_Par
 
 ```
 
-
 ```{r}
 # Ahora creamos los 3 modelos utilizando los hiperparametros encontrados
 
@@ -698,7 +697,6 @@ mejor_arbol_50_na = crear_arbol(best_hiper_50[1],best_hiper_50[2],best_hiper_50[
 mejor_arbol_75_na = crear_arbol(best_hiper_75[1],best_hiper_75[2],best_hiper_75[3])
 
 ```
-
 
 ```{r}
 
@@ -736,7 +734,6 @@ curva_roc_75_NA = curva_AUC_ROC(test_75_na$predicted_class_sex, test_75_na$sex)
 
 ```
 
-
 ```{r}
 graficar_curvas_ROC = function(curva_1, curva_2, titulo_1, titulo_2) {
   
@@ -754,7 +751,6 @@ graficar_curvas_ROC = function(curva_1, curva_2, titulo_1, titulo_2) {
 
 ```
 
-
 ```{r}
 
 auc_score_mejor_arbol
@@ -764,7 +760,6 @@ auc_score_20_NA
 graficar_curvas_ROC(curva_roc_20_NA, curva_optimizada, "Curva árbol 20% NA", "Curva árbol optimizado")
 
 ```
-
 
 ```{r}
 
@@ -776,8 +771,6 @@ graficar_curvas_ROC(curva_roc_50_NA, curva_optimizada, "Curva árbol 50% NA", "C
 
 ```
 
-
-
 ```{r}
 
 auc_score_mejor_arbol
@@ -787,7 +780,6 @@ auc_score_75_NA
 graficar_curvas_ROC(curva_roc_75_NA, curva_optimizada, "Curva árbol 75 NA", "Curva árbol optimizado")
 
 ```
-
 
 ```{r}
 
@@ -800,6 +792,7 @@ score_modelo_50_NA_con_set_completo = predecir_y_calcular_score(mejor_arbol_50_n
 score_modelo_75_NA_con_set_completo = predecir_y_calcular_score(mejor_arbol_75_na,test_set)
 
 ```
+
 Chamuyo final
 
 ## Conclusión (8)
